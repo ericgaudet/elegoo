@@ -5,7 +5,7 @@ DriverStation ds;
 
 void setup() {
   Serial.begin( 115200 );
-  Serial.println( "Controller Test v1.0" );
+  Serial.println( "Controller Test v1.1" );
 }
 
 void autonomous() {
@@ -13,10 +13,17 @@ void autonomous() {
 }
 
 void teleop() {
-  // Print the axes values
-  Serial.print("LX="); Serial.print(ds.getLX());
+  static int count = 5;
+  
+  // Print the axes values every 5 times (should be twice per second)
+  if( --count != 0 ) {
+    return;
+  }
+  count = 5;
+  
+  Serial.print(  "LX="); Serial.print(ds.getLX());
   Serial.print(", LY="); Serial.print(ds.getLY());
-  Serial.print(", RX="); Serial.print(ds.getLY());
+  Serial.print(", RX="); Serial.print(ds.getRX());
   Serial.print(", RY="); Serial.print(ds.getRY());
   Serial.print(", LT="); Serial.print(ds.getLTrig());
   Serial.print(", RT="); Serial.println(ds.getRTrig());
