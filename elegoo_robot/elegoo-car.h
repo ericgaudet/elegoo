@@ -28,7 +28,7 @@ const uint8_t c_u8LineMiddlePin = A1;  // Was 4
 const uint8_t c_u8LineLeftPin = A0; // Was 2
 
 // Servo
-const uint8_t c_u8ServoPin = 10;
+const uint8_t c_u8ServoPin = 3;
 
 // Ultrasonic Sensor
 const uint8_t c_u8TrigPin = A5;

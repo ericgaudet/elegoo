@@ -1,40 +1,45 @@
+// WWFIRST 2021 Elegoo Robot Challenge
+// Eric Gaudet
+//
+// Max robot size W x L x H (starting): 7.65" x 13.91" x 10" (19.43cm x 35.33cm x 25.4cm), current 18.1 x 33.5 x 22.6cm
+// Max robot size W x L x H (game): 10" x 16" x unlimited (25.4cm x 40.64cm), current 18.1 x 36 x 36cm
+
 #include <Servo.h>
 #include "elegoo-car.h"
 #include "DriverStation.h"
 
-// Simple Arduino Sketch that uses the Sample Driver Station.
-// Load this sketch and drive the Elegoo around using an XBox Controller.
 
-// Additional pinouts
-#define GRIPPER_SERVO_PIN 9
+// Add-on hardware configuration
+#define GRIPPER_SERVO_PIN   3
+#define ELEVATOR_SERVO_PIN  10
 
-// Create the ElegooCar object named myCar
-ElegooCar myCar;
-// Create the DriverStation object named ds
-DriverStation ds;
+// Other settings
+#define AUTO_FWD_SPEED      156
+#define FORWARD_SPEED       255
+#define TURN_SPEED          64
 
-#define AUTO_FWD_SPEED 156
-#define FORWARD_SPEED 255
-#define TURN_SPEED 64
+#define JOYSTICK_DEADBAND   64
 
-#define DEADBAND 16 // Joystick values close to 0 that we'll ignore
 
 // Create hardware objects
+ElegooCar myCar;      // DC motors, etc.
+DriverStation ds;     // Joystick/controller and game flow
 Servo gripperServo;
 Servo elevatorServo;
 
+
 void setup() {
-  // put your setup code here, to run once:
   Serial.begin( 115200 );
-  Serial.println( "Ready..." );
+  Serial.println( "Elegoo Robot v0.1" );
   gripperServo.attach( GRIPPER_SERVO_PIN );
-  elevatorServo.attach( c_u8ServoPin );
+  gripperServo.write(0);
+  elevatorServo.attach( ELEVATOR_SERVO_PIN );
+  elevatorServo.write(90);
 }
 
-// autonomous is called 10 times per second during Autonomous mode.
-// this function must not block as new data is received every 100ms
-//
-// you could implement line following here...
+
+// Autonomous mode
+// Called 10 times per second
 void autonomous() {
   int curTime = ds.getStateTimer();
 
@@ -55,79 +60,67 @@ void autonomous() {
     myCar.setSpeed( 0, 0 );
 }
 
-// teleop function is called every time there is new data from the DriverStation
-// this function must not block as new data is received every 100ms
+// Teleop mode
+// Called 10 times per second
 void teleop() {
-  // get the Right Y axis and use this as the "forward speed" for the robot
-  int fwd = ds.getLY();
+  // Drive according to joystick positions
+  // LY is used for forward/backward drive speed
+  // RX is used for turning speed
+  int drivePower = ds.getLY();
+  int turnPower = ds.getRX();
+  int leftPower = drivePower + turnPower;
+  int rightPower = drivePower - turnPower;
 
-  // get the Right X axis and use it as the rate of turn
-  int turn = ds.getRX();
-
-  // Apply the turn adding the turn rate to the left wheels
-  // and subtracting it from the right wheels
-  int left = fwd + turn;
-  int right = fwd - turn;
-
-  // If the power to left or right wheel is too low, the motors can't
-  // turn, so set them to 0 in the 'dead band'
-  if( left > -DEADBAND && left < DEADBAND )
-    left = 0;
-  if( right > -DEADBAND && right < DEADBAND )
-    right = 0;
-
-  // Now tell the Elegoo how fast to turn the left and right wheels
-  myCar.setSpeed( left, right );       
-
-  // This is where you would likely add your code to control your attachment
-  // As an example, we will set the Ultrasonic Range Finder direction based on
-  // the Left stick X value
+  if(leftPower > -JOYSTICK_DEADBAND && leftPower < JOYSTICK_DEADBAND) {
+    leftPower = 0;
+  }
+  if(rightPower > -JOYSTICK_DEADBAND && rightPower < JOYSTICK_DEADBAND) {
+    rightPower = 0;
+  }
+  myCar.setSpeed( leftPower, rightPower );       
 
   // Elevator
-#if 0 // Not done
-  int servoSpeed = 90;  // Full-stop on continuous servo
+  int servoSpeed;
   int lt = ds.getLTrig();
   int rt = ds.getRTrig();
+  // Map throttle values to servo speeds
+  // - LT and RT run from 0..255
+  // - Use LT to lower the elevator (LT 0..255 = servo to 90..180)
+  // - Use RT to raise the elevator (RT 0..255 = servo to 90..0)
   if( lt > 0 ) {
-    // 0 = 90 deg, 255 = 0 deg, so 90/256 and inverted
+    // Lower elevator
     servoSpeed = lt * 90;
     servoSpeed >>= 8;
-    servoSpeed = 90 - servoSpeed;   
+    servoSpeed = 90 + servoSpeed;   
   }
   else if( rt > 0 ) {
+    // Raise elevator
     servoSpeed = rt * 90;
     servoSpeed >>= 8;
-    servoSpeed = 90 + servoSpeed;
+    servoSpeed = 90 - servoSpeed;
   }
   else {
-    servoSpeed = 0;
+    servoSpeed = 90;  // Full-stop on continuous servo
   }
   elevatorServo.write( servoSpeed );
 
   // Gripper
-  if( ds.getButton(0) ) {
-    gripperServo.write( 10 );
+  if( ds.getButton(12) ) {
+    gripperServo.write( 0 );
   }
-  else if( ds.getButton(2) ) {
-    gripperServo.write( 45 );
+  else if( ds.getButton(13) ) {
+    gripperServo.write( 60 );
   }
-#endif
-
-//  Serial.print(ds.getLTrig());Serial.print(" ");
-//  Serial.print(ds.getRTrig());Serial.print(" ");
-//  Serial.print(ds.getButton(0));Serial.print(" ");
-//  Serial.println(ds.getButton(2));
 }
+
 
 void loop() {
   // Update the Elegoo Car state
-  int res = myCar.u16Update();
+  myCar.u16Update();
 
-  // update the DriverStation class - this will check if there is new data from the
-  // DriverStation application.
-  // ds.bUpdate() returns true if new data has been received (10 times/second)
+  // Update the Driver Station state and check if new data has been received (10 times/second)
   if( ds.bUpdate() ) {
-    // now, handle the driver station data depending on what game state we are in
+    // Act based on game state
     switch( ds.getGameState() ) {
       case ePreGame:
       case ePostGame:
@@ -143,12 +136,5 @@ void loop() {
         teleop();
         break;
     }
-  }
-
-  // do other updates that need to happen more frequently than 10 times per second here...
-  // e.g. checking limit switches...
-
-  if( ds.getGameState() == eAutonomous ) {
-    // Could do line-following here
   }
 }
