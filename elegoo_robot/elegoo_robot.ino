@@ -18,7 +18,14 @@
 #define FORWARD_SPEED       255
 #define TURN_SPEED          64
 
+// Controller Settings
 #define JOYSTICK_DEADBAND   64
+
+// Button IDs, from idx 0 (Logitech F310/F710)
+//   A, B, X, Y, LB, RB, LT, RT, 
+//   BACK, START, L3, R3, D-Up, D-Down, D-Left, D-Right
+#define GRIPPER_OPEN_BTN    1
+#define GRIPPER_CLOSE_BTN   2
 
 
 // Create hardware objects
@@ -105,10 +112,10 @@ void teleop() {
   elevatorServo.write( servoSpeed );
 
   // Gripper
-  if( ds.getButton(12) ) {
+  if( ds.getButton(GRIPPER_OPEN_BTN) ) {
     gripperServo.write( 0 );
   }
-  else if( ds.getButton(13) ) {
+  else if( ds.getButton(GRIPPER_CLOSE_BTN) ) {
     gripperServo.write( 60 );
   }
 }
