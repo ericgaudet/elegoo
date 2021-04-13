@@ -10,7 +10,7 @@
 
 
 // Add-on hardware configuration
-#define GRIPPER_SERVO_PIN   3
+#define GRIPPER_SERVO_PIN   9
 #define ELEVATOR_SERVO_PIN  10
 
 // Other settings
