@@ -19,13 +19,13 @@
 #define TURN_SPEED          64
 
 // Controller Settings
-#define JOYSTICK_DEADBAND   64
+#define JOYSTICK_DEADBAND   8
 
 // Button IDs, from idx 0 (Logitech F310/F710)
 //   A, B, X, Y, LB, RB, LT, RT, 
 //   BACK, START, L3, R3, D-Up, D-Down, D-Left, D-Right
-#define GRIPPER_OPEN_BTN    1
-#define GRIPPER_CLOSE_BTN   2
+#define GRIPPER_OPEN_BTN    2
+#define GRIPPER_CLOSE_BTN   1
 
 
 // Create hardware objects
@@ -37,7 +37,7 @@ Servo elevatorServo;
 
 void setup() {
   Serial.begin( 115200 );
-  Serial.println( "Elegoo Robot v2.0" );
+  Serial.println( "Elegoo Robot v2.2" );
   gripperServo.attach( GRIPPER_SERVO_PIN );
   gripperServo.write(0);
   elevatorServo.attach( ELEVATOR_SERVO_PIN );
@@ -59,17 +59,16 @@ void teleop() {
   // LY is used for forward/backward drive speed
   // RX is used for turning speed
   int drivePower = ds.getLY();
-  int turnPower = ds.getRX();
-  int leftPower = drivePower + turnPower;
-  int rightPower = drivePower - turnPower;
+  int rotatePower = ds.getRX();
 
-  if(leftPower > -JOYSTICK_DEADBAND && leftPower < JOYSTICK_DEADBAND) {
-    leftPower = 0;
+  // Count small joystick values as 0
+  if(drivePower > -JOYSTICK_DEADBAND && drivePower < JOYSTICK_DEADBAND) {
+    drivePower = 0;
   }
-  if(rightPower > -JOYSTICK_DEADBAND && rightPower < JOYSTICK_DEADBAND) {
-    rightPower = 0;
+  if(rotatePower > -JOYSTICK_DEADBAND && rotatePower < JOYSTICK_DEADBAND) {
+    rotatePower = 0;
   }
-  drivetrain.setPower( leftPower, rightPower );  
+  drivetrain.drive(drivePower, rotatePower);
 
   // Elevator
   int servoSpeed;

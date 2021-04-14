@@ -30,4 +30,40 @@ public:
     m_leftSide.setPower(left);
     m_rightSide.setPower(right);
   }
+
+  // Tank drive (power -254..254)
+  void drive(int drivePower, int rotatePower) {
+    bool drivePowerNegative = false;
+    long leftPower;
+    long rightPower;
+  
+    // Do the math on the magnitude of the drive power
+    if(drivePower < 0) {
+      drivePowerNegative = true;
+      drivePower = -drivePower;
+    }
+    
+    // If turning, reduce that side's power, eventually going in reverse
+    // Assume power ranges of -256 to 256 to simplify calculations
+    if(rotatePower < 0) {
+      leftPower = (((254 + (long)rotatePower) * drivePower) / 127) - drivePower; // divide by 128
+      rightPower = drivePower;
+    }
+    else if(rotatePower > 0) {
+      leftPower = drivePower;
+      rightPower = (((254 - (long)rotatePower) * drivePower) / 127) - drivePower;
+    }
+    else {
+      leftPower = drivePower;
+      rightPower = drivePower;
+    }
+
+    // All the math above is done for positive drivePower.  Reverse power if drive was negative.
+    if(drivePowerNegative) {
+      leftPower = -leftPower;
+      rightPower = -rightPower;
+    }
+    
+    setPower(leftPower, rightPower);
+  }
 };
