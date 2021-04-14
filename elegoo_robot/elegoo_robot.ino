@@ -5,7 +5,7 @@
 // Max robot size W x L x H (game): 10" x 16" x unlimited (25.4cm x 40.64cm), current 18.1 x 36 x 36cm
 
 #include <Servo.h>
-#include "elegoo-car.h"
+#include "Drivetrain.h"
 #include "DriverStation.h"
 
 
@@ -29,15 +29,15 @@
 
 
 // Create hardware objects
-ElegooCar myCar;      // DC motors, etc.
-DriverStation ds;     // Joystick/controller and game flow
+Drivetrain drivetrain;  // DC motors, etc.
+DriverStation ds;       // Joystick/controller and game flow
 Servo gripperServo;
 Servo elevatorServo;
 
 
 void setup() {
   Serial.begin( 115200 );
-  Serial.println( "Elegoo Robot v0.1" );
+  Serial.println( "Elegoo Robot v2.0" );
   gripperServo.attach( GRIPPER_SERVO_PIN );
   gripperServo.write(0);
   elevatorServo.attach( ELEVATOR_SERVO_PIN );
@@ -50,21 +50,6 @@ void setup() {
 void autonomous() {
   int curTime = ds.getStateTimer();
 
-  // drive forward for 1000ms (1s)
-  if( curTime < 1000 )
-    myCar.setSpeed( FORWARD_SPEED, FORWARD_SPEED );
-
-  // for next 500 ms turn
-  else if( curTime < 1500 )
-    myCar.setSpeed( -TURN_SPEED, TURN_SPEED );
-
-  // drive straight again for 1000ms
-  else if( curTime < 2500 )
-    myCar.setSpeed( FORWARD_SPEED, FORWARD_SPEED );
-
-  // stop after 2.5 seconds
-  else
-    myCar.setSpeed( 0, 0 );
 }
 
 // Teleop mode
@@ -84,7 +69,7 @@ void teleop() {
   if(rightPower > -JOYSTICK_DEADBAND && rightPower < JOYSTICK_DEADBAND) {
     rightPower = 0;
   }
-  myCar.setSpeed( leftPower, rightPower );       
+  drivetrain.setPower( leftPower, rightPower );  
 
   // Elevator
   int servoSpeed;
@@ -122,9 +107,6 @@ void teleop() {
 
 
 void loop() {
-  // Update the Elegoo Car state
-  myCar.u16Update();
-
   // Update the Driver Station state and check if new data has been received (10 times/second)
   if( ds.bUpdate() ) {
     // Act based on game state
@@ -132,7 +114,7 @@ void loop() {
       case ePreGame:
       case ePostGame:
         // During Pre and Post game, the Elegoo should not move!
-        myCar.setSpeed( 0, 0 );
+        drivetrain.setPower( 0, 0 );
         break;
       case eAutonomous:
         // Handle Autonomous mode

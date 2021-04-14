@@ -5,7 +5,8 @@
 // It could also use the simpler "external" interrupt if pin 2 or 3 were available.
 
 // To test, run the code and turn encoder shaft.
-#include "PinChangeInt.h"
+
+#include "PinChangeInt.h" // From https://github.com/GreyGnome/PinChangeInt
 
 #define ROTARY_ENC_CLK    A0  // Turn the knob
 #define ROTARY_ENC_DATA   A1
