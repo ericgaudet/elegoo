@@ -36,6 +36,8 @@ void loop() {
 }
 
 // This is the encoder's Interrupt Service Routine (ISR)
+// IMPORTANT:  Do as little as possible in an ISR because everything else in your
+//             Arduino is stopped while you are in here.
 void encoderTicked() {
   // The encoder pin has transitioned from high->low or low->high.
   encoderTicks++;
