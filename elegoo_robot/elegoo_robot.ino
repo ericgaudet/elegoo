@@ -13,11 +13,6 @@
 #define GRIPPER_SERVO_PIN   9
 #define ELEVATOR_SERVO_PIN  10
 
-// Other settings
-#define AUTO_FWD_SPEED      156
-#define FORWARD_SPEED       255
-#define TURN_SPEED          64
-
 // Controller Settings
 #define JOYSTICK_DEADBAND   8
 
@@ -37,7 +32,7 @@ Servo elevatorServo;
 
 void setup() {
   Serial.begin( 115200 );
-  Serial.println( "Elegoo Robot v2.2" );
+  Serial.println( "Elegoo Robot v2.3" );
   gripperServo.attach( GRIPPER_SERVO_PIN );
   gripperServo.write(0);
   elevatorServo.attach( ELEVATOR_SERVO_PIN );
@@ -48,7 +43,13 @@ void setup() {
 // Autonomous mode
 // Called 10 times per second
 void autonomous() {
-  int curTime = ds.getStateTimer();
+  static bool firstTime = true;
+  if(firstTime) {
+    firstTime = false;
+    drivetrain.autoDistance(200);
+  }
+
+  drivetrain.updateAuto();
 
 }
 

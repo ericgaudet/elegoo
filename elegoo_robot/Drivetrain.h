@@ -1,4 +1,5 @@
 #include "TankDriveSide.h"
+#include "WheelEncoder.h"
 
 // Motor pins
 #define L298_ENA_PIN  5
@@ -8,22 +9,46 @@
 #define L298_IN3_PIN  12  // Was 9
 #define L298_IN4_PIN  11
 
+// Encoder pins and defines
+#define LEFT_ENCODER_PIN    2
+#define RIGHT_ENCODER_PIN   3
+#define TICKS_TO_MM_FACTOR  0.123
+
 // Line tracking pins
 #define LINE_RIGHT_PIN  A2  // Was 10
 #define L298_MIDDLE_PIN A1  // Was 4
 #define L298_LEFT_PIN   A0  // Was 2
 
+enum States {
+  idle = 0,
+  straight
+};
 
 class Drivetrain {
 private:
   class TankDriveSide m_leftSide;
   class TankDriveSide m_rightSide;
+  class WheelEncoder m_leftEncoder;
+  class WheelEncoder m_rightEncoder;
+  int m_leftEncoderCount;
+  int m_rightEncoderCount;
+  int m_leftTargetTicks;
+  int m_rightTargetTicks;
+  enum States m_state;
   
 public:
   // Constructor
   Drivetrain(): 
     m_leftSide(L298_ENA_PIN, L298_IN1_PIN, L298_IN2_PIN),
-    m_rightSide(L298_ENB_PIN, L298_IN4_PIN, L298_IN3_PIN) {}
+    m_rightSide(L298_ENB_PIN, L298_IN4_PIN, L298_IN3_PIN),
+    m_leftEncoder(LEFT_ENCODER_PIN),
+    m_rightEncoder(RIGHT_ENCODER_PIN) {
+      m_leftEncoder.setTicksToDistanceFactor(TICKS_TO_MM_FACTOR);
+      m_rightEncoder.setTicksToDistanceFactor(TICKS_TO_MM_FACTOR);
+      m_leftTargetTicks = 0;
+      m_rightTargetTicks = 0;
+      m_state = idle;
+  }
     
   // Set left and right side power (0..255)
   void setPower(int left, int right) {
@@ -31,6 +56,7 @@ public:
     m_rightSide.setPower(right);
   }
 
+  ////////////////////////////////////////////////////////////////////
   // Tank drive (power -254..254)
   void drive(int drivePower, int rotatePower) {
     bool drivePowerNegative = false;
@@ -66,4 +92,55 @@ public:
     
     setPower(leftPower, rightPower);
   }
+
+  ////////////////////////////////////////////////////////////////////
+  // Update the auto-drive state machine (for motion when not using joysticks)
+  void updateAuto() {
+    switch(m_state) {
+    case idle:
+      break;
+    case straight:
+      // Check if we've gotten to the target distance (take into account the direction)
+      if((m_leftTargetTicks >= 0 && (m_leftEncoder.getDistanceInTicks() >= m_leftTargetTicks)) ||
+         (m_leftTargetTicks < 0 && (m_leftEncoder.getDistanceInTicks() <= m_leftTargetTicks))) {
+        setPower(0, 0);
+        m_state = idle;
+      }
+      break;
+    }
+  }
+
+  ////////////////////////////////////////////////////////////////////
+  // Auto Distance (in mm)
+  void autoDistance(int distance) {
+    // Immediate stop condition
+    if(distance == 0) {
+      m_state = idle;
+      setPower(0, 0);
+      return;
+    }
+    
+    // Set target distance in encoder ticks
+    m_leftTargetTicks = m_leftEncoder.getNumTicksInDistance(distance);
+    m_rightTargetTicks = m_rightEncoder.getNumTicksInDistance(distance);
+
+    // Reset the encoders and set the direction of motion
+    m_leftEncoder.reset();
+    m_rightEncoder.reset();
+    m_leftEncoder.setDirectionForward(distance > 0 ? true : false);
+    m_rightEncoder.setDirectionForward(distance < 0 ? true : false);
+
+    // Start the motors
+    if(distance > 0) {
+      setPower(128,128);
+    }
+    else {
+      setPower(-128,-128);
+    }
+
+    // Start the state machine
+    m_state = straight;
+    
+  }
+  
 };
