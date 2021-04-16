@@ -12,7 +12,7 @@
 // Encoder pins and defines
 #define LEFT_ENCODER_PIN    2
 #define RIGHT_ENCODER_PIN   3
-#define TICKS_TO_MM_FACTOR  (495/1000.0)
+#define TICKS_TO_MM_FACTOR  (109/280.0)
 
 // Line tracking pins
 #define LINE_RIGHT_PIN  A2  // Was 10
@@ -108,7 +108,7 @@ public:
         m_state = idle;
         Serial.print("Ending straight drive (");
         Serial.print(curTicks);
-        Serial.print("of ");
+        Serial.print(" of ");
         Serial.print(m_leftTargetTicks);
         Serial.println(")");
       }
