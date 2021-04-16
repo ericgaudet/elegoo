@@ -12,7 +12,7 @@
 // Encoder pins and defines
 #define LEFT_ENCODER_PIN    2
 #define RIGHT_ENCODER_PIN   3
-#define TICKS_TO_MM_FACTOR  0.123
+#define TICKS_TO_MM_FACTOR  (495/1000.0)
 
 // Line tracking pins
 #define LINE_RIGHT_PIN  A2  // Was 10
@@ -41,8 +41,8 @@ public:
   Drivetrain(): 
     m_leftSide(L298_ENA_PIN, L298_IN1_PIN, L298_IN2_PIN),
     m_rightSide(L298_ENB_PIN, L298_IN4_PIN, L298_IN3_PIN),
-    m_leftEncoder(LEFT_ENCODER_PIN),
-    m_rightEncoder(RIGHT_ENCODER_PIN) {
+    m_leftEncoder(LEFT_ENCODER_PIN, true),
+    m_rightEncoder(RIGHT_ENCODER_PIN, false) {
       m_leftEncoder.setTicksToDistanceFactor(TICKS_TO_MM_FACTOR);
       m_rightEncoder.setTicksToDistanceFactor(TICKS_TO_MM_FACTOR);
       m_leftTargetTicks = 0;
@@ -101,10 +101,16 @@ public:
       break;
     case straight:
       // Check if we've gotten to the target distance (take into account the direction)
-      if((m_leftTargetTicks >= 0 && (m_leftEncoder.getDistanceInTicks() >= m_leftTargetTicks)) ||
-         (m_leftTargetTicks < 0 && (m_leftEncoder.getDistanceInTicks() <= m_leftTargetTicks))) {
+      int curTicks = m_leftEncoder.getDistanceInTicks();
+      if((m_leftTargetTicks >= 0 && (curTicks >= m_leftTargetTicks)) ||
+         (m_leftTargetTicks < 0 && (curTicks <= m_leftTargetTicks))) {
         setPower(0, 0);
         m_state = idle;
+        Serial.print("Ending straight drive (");
+        Serial.print(curTicks);
+        Serial.print("of ");
+        Serial.print(m_leftTargetTicks);
+        Serial.println(")");
       }
       break;
     }

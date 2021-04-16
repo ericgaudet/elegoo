@@ -29,10 +29,13 @@ DriverStation ds;       // Joystick/controller and game flow
 Servo gripperServo;
 Servo elevatorServo;
 
+// Globals
+bool firstTimeInAuto = true;
+
 
 void setup() {
   Serial.begin( 115200 );
-  Serial.println( "Elegoo Robot v2.3" );
+  Serial.println( "Elegoo Robot v2.4" );
   gripperServo.attach( GRIPPER_SERVO_PIN );
   gripperServo.write(0);
   elevatorServo.attach( ELEVATOR_SERVO_PIN );
@@ -43,14 +46,13 @@ void setup() {
 // Autonomous mode
 // Called 10 times per second
 void autonomous() {
-  static bool firstTime = true;
-  if(firstTime) {
-    firstTime = false;
+  if(firstTimeInAuto) {
+    firstTimeInAuto = false;
+    Serial.println("Driving for 200mm");
     drivetrain.autoDistance(200);
   }
 
   drivetrain.updateAuto();
-
 }
 
 // Teleop mode
@@ -115,6 +117,8 @@ void loop() {
       case ePostGame:
         // During Pre and Post game, the Elegoo should not move!
         drivetrain.setPower( 0, 0 );
+        // Reset for auto
+        firstTimeInAuto = true;
         break;
       case eAutonomous:
         // Handle Autonomous mode
