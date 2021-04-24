@@ -7,6 +7,7 @@
 #include <Servo.h>
 #include "Drivetrain.h"
 #include "DriverStation.h"
+#include "UltrasonicSensor.h"
 
 
 // Add-on hardware configuration
@@ -28,6 +29,7 @@ Drivetrain drivetrain;  // DC motors, etc.
 DriverStation ds;       // Joystick/controller and game flow
 Servo gripperServo;
 Servo elevatorServo;
+UltrasonicSensor ultrasonic;
 
 // Globals
 bool firstTimeInAuto = true;
