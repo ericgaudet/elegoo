@@ -14,15 +14,19 @@
 #define RIGHT_ENCODER_PIN   3
 #define TICKS_TO_MM_FACTOR  (109/280.0)
 
-// Line tracking pins
+// Line follower pins
+#define LINE_LEFT_PIN   A0  // Was 2
+#define LINE_MIDDLE_PIN A1  // Was 4
 #define LINE_RIGHT_PIN  A2  // Was 10
-#define L298_MIDDLE_PIN A1  // Was 4
-#define L298_LEFT_PIN   A0  // Was 2
 
 enum States {
   idle = 0,
   straight
 };
+
+// Constants
+#define LINE_FOLLOW_STRAIGHT_POWER  128
+#define LINE_FOLLOW_TURN_POWER      128
 
 class Drivetrain {
 private:
@@ -43,13 +47,19 @@ public:
     m_rightSide(L298_ENB_PIN, L298_IN4_PIN, L298_IN3_PIN),
     m_leftEncoder(LEFT_ENCODER_PIN, true),
     m_rightEncoder(RIGHT_ENCODER_PIN, false) {
+
+      pinMode(LINE_LEFT_PIN, INPUT);
+      pinMode(LINE_MIDDLE_PIN, INPUT);
+      pinMode(LINE_RIGHT_PIN, INPUT);
+      
       m_leftEncoder.setTicksToDistanceFactor(TICKS_TO_MM_FACTOR);
       m_rightEncoder.setTicksToDistanceFactor(TICKS_TO_MM_FACTOR);
       m_leftTargetTicks = 0;
       m_rightTargetTicks = 0;
       m_state = idle;
   }
-    
+
+  ////////////////////////////////////////////////////////////////////
   // Set left and right side power (0..255)
   void setPower(int left, int right) {
     m_leftSide.setPower(left);
@@ -57,7 +67,7 @@ public:
   }
 
   ////////////////////////////////////////////////////////////////////
-  // Tank drive (power -254..254)
+  // Tank drive wrapper for setPower (powers: -254..254)
   void drive(int drivePower, int rotatePower) {
     bool drivePowerNegative = false;
     long leftPower;
@@ -145,8 +155,39 @@ public:
     }
 
     // Start the state machine
-    m_state = straight;
+    m_state = straight;  
+  }
+
+  ////////////////////////////////////////////////////////////////////
+  // Auto Rotate (in deg, negative means counter-clockwise)
+  void autoRotate(int deg) {
     
   }
-  
+
+  ////////////////////////////////////////////////////////////////////
+  // Follow a black line.  This should be called as often as possible.
+  void autoLineFollow() {
+    // Check if all three sensors see black (perpendicular to a black line)
+    if((digitalRead(LINE_LEFT_PIN) == 0) && 
+       (digitalRead(LINE_MIDDLE_PIN) == 0) && 
+       (digitalRead(LINE_RIGHT_PIN) == 0)) {
+      setPower(0, 0);  
+    }
+    if(digitalRead(LINE_MIDDLE_PIN) == 0) {
+      // Black line is in the middle, keep going
+      setPower(LINE_FOLLOW_STRAIGHT_POWER, LINE_FOLLOW_STRAIGHT_POWER);
+    }
+    else if(digitalRead(LINE_LEFT_PIN) == 0) {
+      // Black line is under the left sensor to go left to bring it to the middle
+      setPower(-LINE_FOLLOW_TURN_POWER, LINE_FOLLOW_TURN_POWER);
+    }
+    else if(digitalRead(LINE_RIGHT_PIN) == 0) {
+      // Black line is under the right sensor to go right to bring it to the middle
+      setPower(LINE_FOLLOW_TURN_POWER, -LINE_FOLLOW_TURN_POWER);
+    }
+    else {
+      // Probably the hard right corner at the beginning
+      setPower(0, 0);
+    }
+  }
 };

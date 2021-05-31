@@ -48,13 +48,13 @@ void setup() {
 // Autonomous mode
 // Called 10 times per second
 void autonomous() {
-  if(firstTimeInAuto) {
-    firstTimeInAuto = false;
-    Serial.println("Driving for 200mm");
-    drivetrain.autoDistance(200);
-  }
-
-  drivetrain.updateAuto();
+//  if(firstTimeInAuto) {
+//    firstTimeInAuto = false;
+//    Serial.println("Driving for 200mm");
+//    drivetrain.autoDistance(200);
+//  }
+//
+//  drivetrain.updateAuto();
 }
 
 // Teleop mode
