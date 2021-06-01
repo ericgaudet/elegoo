@@ -149,15 +149,84 @@ void loop() {
   }
 }
 
-
+#define COMMAND_2ND_CUP 1
 void commandHandler() {
-  // Grab 2nd Cup
-  // - Open gripper (first cup falls into second cup)
-  // - Wait 0.5s
-  // - Back-up 30mm (so elevator doesn't hit cups)
-  // - Lower elevator to pick-up-height
-  // - Drive forward 30mm
-  // - Close gripper
-  // - Wait 0.5s
-  // - Raise elevator to max height
+  static int commandId = COMMAND_2ND_CUP;  // TODO: move these
+  static int commandStage = 0;
+
+  // Determine which command we're running
+  switch(commandId) {
+    
+  case COMMAND_2ND_CUP:
+    // Walk through the grab-2nd-cup command's stages
+    // PRECONDITIONS:
+    // - First cup in gripper
+    // - Elevator up
+    // - First cup positioned over second cup
+    
+    // TODO:  Break out into separate handle2ndCupCommand()?
+    switch(commandStage) {
+    case 0:
+      // Open gripper (first cup falls into second cup)
+      gripperServo.write(0);
+      commandStage++;
+      // Wait until gripper opens and cup falls
+      // TODO: Set timer
+      break;
+    case 1:
+      if(1 /* TODO: timer expired */) {
+        commandStage++;
+        // Back up 30mm (so elevator doesn't hit cups on way down)
+        drivetrain.autoDistance(-30);
+      }
+      break;
+    case 2:
+      // Update the drivetrain state machine and check if the move is done
+      drivetrain.updateAuto();
+      if(drivetrain.isAutoIdle()) {
+        commandStage++;
+        // Lower elevator to pick-up-height
+        elevatorServo.write(180); // TODO:  Make a sub-system
+      }
+      break;
+    case 3:
+      // Check if elevator is lowered
+      if(1 /* TODO: Limit switch triggered */) {
+        commandStage++;
+        // Drive forward 30mm
+        drivetrain.autoDistance(30);
+      }
+      break;
+    case 4:
+      // Update the drivetrain state machine and check if the move is done
+      drivetrain.updateAuto();
+      if(drivetrain.isAutoIdle()) {
+        commandStage++;
+        // Close the gripper to grab the cups and then wait for things to stabilize
+        gripperServo.write(60);
+        // TODO: Set timer
+      }
+      break;
+    case 5:
+      if(1 /* TODO: timer expired */) {
+        commandStage++;
+        // Raise elevator to platform-drop-off-height
+        elevatorServo.write(0); // TODO:  Make a sub-system
+      }
+      break;
+    case 6:
+      // Check if elevator is raised
+      if(1 /* TODO: Limit switch triggered */) {
+        // Command done
+        commandRunning = 0;
+        commandId = 0;
+        commandStage = 0;
+      }
+      break;
+    }
+    break;
+    
+    
+  }
+  
 }

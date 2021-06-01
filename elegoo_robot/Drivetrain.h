@@ -149,6 +149,12 @@ public:
   }
 
   ////////////////////////////////////////////////////////////////////
+  // Returns true of no automation is running
+  bool isAutoIdle() {
+    return (m_state == idle) ? true : false;
+  }
+
+  ////////////////////////////////////////////////////////////////////
   // Auto Distance (in mm)
   void autoDistance(int distance) {
     // Immediate stop condition
