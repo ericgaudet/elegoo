@@ -15,15 +15,15 @@ public:
     m_in1Pin = in1Pin;
     m_in2Pin = in2Pin;
 
-    pinMode( m_enPin, OUTPUT );
-    pinMode( m_in1Pin, OUTPUT );
-    pinMode( m_in2Pin, OUTPUT );
+    pinMode(m_enPin, OUTPUT);
+    pinMode(m_in1Pin, OUTPUT);
+    pinMode(m_in2Pin, OUTPUT);
 
     // Make sure motors are stopped
     m_curPower = 0;
-    digitalWrite( m_in1Pin, LOW );
-    digitalWrite( m_in2Pin, LOW );
-    analogWrite( m_enPin, m_curPower );  
+    digitalWrite(m_in1Pin, LOW);
+    digitalWrite(m_in2Pin, LOW);
+    analogWrite(m_enPin, m_curPower);  
   }
 
   // Set the motors on this side to specified power (0..255)
@@ -39,20 +39,20 @@ public:
     // Only set the power if it changed
     if(power != m_curPower) {
       // Set the motors to the desired power
-      if( power > 0 ) {
-        digitalWrite( m_in1Pin, HIGH );
-        digitalWrite( m_in2Pin, LOW );
-        analogWrite( m_enPin, power );
+      if(power > 0) {
+        digitalWrite(m_in1Pin, HIGH);
+        digitalWrite(m_in2Pin, LOW);
+        analogWrite(m_enPin, power);
       }
-      else if( power < 0 ) {
-        digitalWrite( m_in1Pin, LOW );
-        digitalWrite( m_in2Pin, HIGH );
-        analogWrite( m_enPin, -power );
+      else if(power < 0) {
+        digitalWrite(m_in1Pin, LOW);
+        digitalWrite(m_in2Pin, HIGH);
+        analogWrite(m_enPin, -power);
       }
       else {
-        digitalWrite( m_in1Pin, LOW );
-        digitalWrite( m_in2Pin, LOW );
-        analogWrite( m_enPin, 0 );
+        digitalWrite(m_in1Pin, LOW);
+        digitalWrite(m_in2Pin, LOW);
+        analogWrite(m_enPin, 0);
       }
       m_curPower = power;
     }

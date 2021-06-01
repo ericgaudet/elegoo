@@ -21,12 +21,16 @@
 
 enum States {
   idle = 0,
-  straight
+  straight,
+  rotate
 };
 
 // Constants
+#define AUTO_STRAIGHT_POWER         128
+#define AUTO_TURN_POWER             128
 #define LINE_FOLLOW_STRAIGHT_POWER  128
 #define LINE_FOLLOW_TURN_POWER      128
+#define WHEEL_BASE_MM               100
 
 class Drivetrain {
 private:
@@ -106,18 +110,36 @@ public:
   ////////////////////////////////////////////////////////////////////
   // Update the auto-drive state machine (for motion when not using joysticks)
   void updateAuto() {
+    int ticks = 0;
+    
     switch(m_state) {
     case idle:
       break;
+      
     case straight:
       // Check if we've gotten to the target distance (take into account the direction)
-      int curTicks = m_leftEncoder.getDistanceInTicks();
-      if((m_leftTargetTicks >= 0 && (curTicks >= m_leftTargetTicks)) ||
-         (m_leftTargetTicks < 0 && (curTicks <= m_leftTargetTicks))) {
+      ticks = m_leftEncoder.getDistanceInTicks();
+      if((m_leftTargetTicks >= 0 && (ticks >= m_leftTargetTicks)) ||
+         (m_leftTargetTicks < 0 && (ticks <= m_leftTargetTicks))) {
         setPower(0, 0);
         m_state = idle;
         Serial.print("Ending straight drive (");
-        Serial.print(curTicks);
+        Serial.print(ticks);
+        Serial.print(" of ");
+        Serial.print(m_leftTargetTicks);
+        Serial.println(")");
+      }
+      break;
+      
+    case rotate:
+      // Check if we've gotten to the target distance (take into account the direction)
+      ticks = m_leftEncoder.getDistanceInTicks();
+      if((m_leftTargetTicks >= 0 && (ticks >= m_leftTargetTicks)) ||
+         (m_leftTargetTicks < 0 && (ticks <= m_leftTargetTicks))) {
+        setPower(0, 0);
+        m_state = idle;
+        Serial.print("Ending rotate (");
+        Serial.print(ticks);
         Serial.print(" of ");
         Serial.print(m_leftTargetTicks);
         Serial.println(")");
@@ -148,10 +170,10 @@ public:
 
     // Start the motors
     if(distance > 0) {
-      setPower(128,128);
+      setPower(AUTO_STRAIGHT_POWER,AUTO_STRAIGHT_POWER);
     }
     else {
-      setPower(-128,-128);
+      setPower(-AUTO_STRAIGHT_POWER,-AUTO_STRAIGHT_POWER);
     }
 
     // Start the state machine
@@ -161,7 +183,36 @@ public:
   ////////////////////////////////////////////////////////////////////
   // Auto Rotate (in deg, negative means counter-clockwise)
   void autoRotate(int deg) {
-    
+    // Immediate stop condition
+    if(deg == 0) {
+      m_state = idle;
+      setPower(0, 0);
+      return;
+    }
+
+    // Convert degress to distance (based on wheel-base's circle circumference)
+    int distance = WHEEL_BASE_MM * PI * (long)deg / 360;
+
+    // Set the target ticks
+    m_leftTargetTicks = m_leftEncoder.getNumTicksInDistance(distance);
+    m_rightTargetTicks = m_rightEncoder.getNumTicksInDistance(distance);
+
+    // Reset the encoders and set the direction of motion
+    m_leftEncoder.reset();
+    m_rightEncoder.reset();
+    m_leftEncoder.setDirectionForward(distance > 0 ? true : false);
+    m_rightEncoder.setDirectionForward(distance < 0 ? true : false);
+
+    // Start the motors
+    if(distance > 0) {
+      setPower(-AUTO_TURN_POWER, AUTO_TURN_POWER);
+    }
+    else {
+      setPower(AUTO_TURN_POWER, -AUTO_TURN_POWER);
+    }
+
+    // Start the state machine
+    m_state = rotate;  
   }
 
   ////////////////////////////////////////////////////////////////////

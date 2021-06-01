@@ -20,8 +20,9 @@
 // Button IDs, from idx 0 (Logitech F310/F710)
 //   A, B, X, Y, LB, RB, LT, RT, 
 //   BACK, START, L3, R3, D-Up, D-Down, D-Left, D-Right
-#define GRIPPER_OPEN_BTN    2
 #define GRIPPER_CLOSE_BTN   1
+#define GRIPPER_OPEN_BTN    2
+#define CMD_GRAB_2ND_CUP    3
 
 
 // Create hardware objects
@@ -33,6 +34,7 @@ UltrasonicSensor ultrasonic;
 
 // Globals
 bool firstTimeInAuto = true;
+bool commandRunning = false;
 
 
 void setup() {
@@ -60,21 +62,31 @@ void autonomous() {
 // Teleop mode
 // Called 10 times per second
 void teleop() {
-  // Drive according to joystick positions
-  // LY is used for forward/backward drive speed
-  // RX is used for turning speed
-  int drivePower = ds.getLY();
-  int rotatePower = ds.getRX();
-
-  // Count small joystick values as 0
-  if(drivePower > -JOYSTICK_DEADBAND && drivePower < JOYSTICK_DEADBAND) {
-    drivePower = 0;
+  if(!commandRunning) {
+    // Drive according to joystick positions
+    // LY is used for forward/backward drive speed
+    // RX is used for turning speed
+    int drivePower = ds.getLY();
+    int rotatePower = ds.getRX();
+  
+    // Count small joystick values as 0
+    if(drivePower > -JOYSTICK_DEADBAND && drivePower < JOYSTICK_DEADBAND) {
+      drivePower = 0;
+    }
+    if(rotatePower > -JOYSTICK_DEADBAND && rotatePower < JOYSTICK_DEADBAND) {
+      rotatePower = 0;
+    }
+    drivetrain.drive(drivePower, rotatePower);
   }
-  if(rotatePower > -JOYSTICK_DEADBAND && rotatePower < JOYSTICK_DEADBAND) {
-    rotatePower = 0;
-  }
-  drivetrain.drive(drivePower, rotatePower);
 
+  // Check for buttons that trigger a group of commands
+  if(!commandRunning) {
+    if(ds.getButton(CMD_GRAB_2ND_CUP)) {
+      // Setup the command
+      // commandRunning = true;
+    }
+  }
+  
   // Elevator
   int servoSpeed;
   int lt = ds.getLTrig();
@@ -83,13 +95,13 @@ void teleop() {
   // - LT and RT run from 0..255
   // - Use LT to lower the elevator (LT 0..255 = servo to 90..180)
   // - Use RT to raise the elevator (RT 0..255 = servo to 90..0)
-  if( lt > 0 ) {
+  if(lt > 0) {
     // Lower elevator
     servoSpeed = lt * 90;
     servoSpeed >>= 8;
     servoSpeed = 90 + servoSpeed;   
   }
-  else if( rt > 0 ) {
+  else if(rt > 0) {
     // Raise elevator
     servoSpeed = rt * 90;
     servoSpeed >>= 8;
@@ -98,27 +110,30 @@ void teleop() {
   else {
     servoSpeed = 90;  // Full-stop on continuous servo
   }
-  elevatorServo.write( servoSpeed );
+  elevatorServo.write(servoSpeed);
 
+  // These buttons can interrupt commands
   // Gripper
-  if( ds.getButton(GRIPPER_OPEN_BTN) ) {
-    gripperServo.write( 0 );
+  if(ds.getButton(GRIPPER_OPEN_BTN)) {
+    gripperServo.write(0);
+    // Interrupt command if running
   }
-  else if( ds.getButton(GRIPPER_CLOSE_BTN) ) {
-    gripperServo.write( 60 );
+  else if(ds.getButton(GRIPPER_CLOSE_BTN)) {
+    gripperServo.write(60);
+    // Interrupt command if running
   }
 }
 
 
 void loop() {
   // Update the Driver Station state and check if new data has been received (10 times/second)
-  if( ds.bUpdate() ) {
+  if(ds.bUpdate()) {
     // Act based on game state
-    switch( ds.getGameState() ) {
+    switch(ds.getGameState()) {
       case ePreGame:
       case ePostGame:
         // During Pre and Post game, the Elegoo should not move!
-        drivetrain.setPower( 0, 0 );
+        drivetrain.setPower(0, 0);
         // Reset for auto
         firstTimeInAuto = true;
         break;
@@ -132,4 +147,17 @@ void loop() {
         break;
     }
   }
+}
+
+
+void commandHandler() {
+  // Grab 2nd Cup
+  // - Open gripper (first cup falls into second cup)
+  // - Wait 0.5s
+  // - Back-up 30mm (so elevator doesn't hit cups)
+  // - Lower elevator to pick-up-height
+  // - Drive forward 30mm
+  // - Close gripper
+  // - Wait 0.5s
+  // - Raise elevator to max height
 }
