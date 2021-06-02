@@ -1,5 +1,3 @@
-
-
 // Class to control one side (2 motors) of the tank drive
 class TankDriveSide {
 private:

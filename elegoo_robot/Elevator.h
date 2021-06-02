@@ -1,3 +1,5 @@
+// Elevator subsystem
+// Includes continuous servo control for raise-lower functionality and upper and lower limit switches.
 #include "RobotMap.h"
 #include <Servo.h>
 

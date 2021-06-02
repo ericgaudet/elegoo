@@ -1,6 +1,4 @@
-
-
-// Simple wheel encoder functionality
+// Class that manages the wheel encoders
 
 // Need left and right side items because the interrupts don't work with class functions
 int g_leftCount = 0;

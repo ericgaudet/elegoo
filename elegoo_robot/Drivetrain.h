@@ -1,3 +1,5 @@
+// Drivetrain subsystem
+// Includes wheel motor control (2 left, 2 right), wheel encorder management and line following sensors.
 #include "RobotMap.h"
 #include "TankDriveSide.h"
 #include "WheelEncoder.h"

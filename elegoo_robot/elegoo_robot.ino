@@ -8,6 +8,7 @@
 #include "DriverStation.h"
 #include "Gripper.h"
 #include "Elevator.h"
+#include "Timer.h"
 #include "UltrasonicSensor.h"
 
 
@@ -27,6 +28,7 @@ Drivetrain drivetrain;  // DC motors, etc.
 DriverStation ds;       // Joystick/controller and game flow
 Elevator elevator;
 Gripper gripper;
+Timer timer;
 UltrasonicSensor ultrasonic;
 
 
@@ -163,10 +165,10 @@ void commandHandler() {
       gripper.open();
       commandStage++;
       // Wait until gripper opens and cup falls
-      // TODO: Set timer
+      timer.set(500);
       break;
     case 1:
-      if(1 /* TODO: timer expired */) {
+      if(timer.isExpired()) {
         commandStage++;
         // Back up 30mm (so elevator doesn't hit cups on way down)
         drivetrain.autoDistance(-30);
@@ -197,11 +199,11 @@ void commandHandler() {
         commandStage++;
         // Close the gripper to grab the cups and then wait for things to stabilize
         gripper.close();
-        // TODO: Set timer
+        timer.set(500);
       }
       break;
     case 5:
-      if(1 /* TODO: timer expired */) {
+      if(timer.isExpired()) {
         commandStage++;
         // Raise elevator to platform-drop-off-height
         elevator.setPower(256);

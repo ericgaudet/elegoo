@@ -1,3 +1,5 @@
+// Ultrasonic distance sensor manager
+// Control for forward-facing ultrasonic distance sensor.
 #include "RobotMap.h"
 
 // Useful constants for ultrasonic calculations
