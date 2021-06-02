@@ -7,12 +7,12 @@
 #include <Servo.h>
 #include "Drivetrain.h"
 #include "DriverStation.h"
+#include "Elevator.h"
 #include "UltrasonicSensor.h"
 
 
 // Add-on hardware configuration
 #define GRIPPER_SERVO_PIN   9
-#define ELEVATOR_SERVO_PIN  10
 
 // Controller Settings
 #define JOYSTICK_DEADBAND   8
@@ -28,8 +28,8 @@
 // Create hardware objects
 Drivetrain drivetrain;  // DC motors, etc.
 DriverStation ds;       // Joystick/controller and game flow
+Elevator elevator;
 Servo gripperServo;
-Servo elevatorServo;
 UltrasonicSensor ultrasonic;
 
 // Globals
@@ -42,8 +42,6 @@ void setup() {
   Serial.println( "Elegoo Robot v2.4" );
   gripperServo.attach( GRIPPER_SERVO_PIN );
   gripperServo.write(0);
-  elevatorServo.attach( ELEVATOR_SERVO_PIN );
-  elevatorServo.write(90);
 }
 
 
@@ -88,29 +86,25 @@ void teleop() {
   }
   
   // Elevator
-  int servoSpeed;
+  int servoPower;
   int lt = ds.getLTrig();
   int rt = ds.getRTrig();
   // Map throttle values to servo speeds
   // - LT and RT run from 0..255
-  // - Use LT to lower the elevator (LT 0..255 = servo to 90..180)
-  // - Use RT to raise the elevator (RT 0..255 = servo to 90..0)
+  // - Use LT to lower the elevator
+  // - Use RT to raise the elevator
   if(lt > 0) {
     // Lower elevator
-    servoSpeed = lt * 90;
-    servoSpeed >>= 8;
-    servoSpeed = 90 + servoSpeed;   
+    servoPower = -lt;  
   }
   else if(rt > 0) {
     // Raise elevator
-    servoSpeed = rt * 90;
-    servoSpeed >>= 8;
-    servoSpeed = 90 - servoSpeed;
+    servoPower = rt;
   }
   else {
-    servoSpeed = 90;  // Full-stop on continuous servo
+    servoPower = 0;
   }
-  elevatorServo.write(servoSpeed);
+  elevator.setPower(servoPower);
 
   // These buttons can interrupt commands
   // Gripper
@@ -186,12 +180,13 @@ void commandHandler() {
       if(drivetrain.isAutoIdle()) {
         commandStage++;
         // Lower elevator to pick-up-height
-        elevatorServo.write(180); // TODO:  Make a sub-system
+        elevator.setPower(-256);
       }
       break;
     case 3:
       // Check if elevator is lowered
-      if(1 /* TODO: Limit switch triggered */) {
+      if(elevator.isAtLowerLimit()) {
+        elevator.setPower(0);
         commandStage++;
         // Drive forward 30mm
         drivetrain.autoDistance(30);
@@ -211,12 +206,13 @@ void commandHandler() {
       if(1 /* TODO: timer expired */) {
         commandStage++;
         // Raise elevator to platform-drop-off-height
-        elevatorServo.write(0); // TODO:  Make a sub-system
+        elevator.setPower(256);
       }
       break;
     case 6:
       // Check if elevator is raised
-      if(1 /* TODO: Limit switch triggered */) {
+      if(elevator.isAtUpperLimit()) {
+        elevator.setPower(0);
         // Command done
         commandRunning = 0;
         commandId = 0;
