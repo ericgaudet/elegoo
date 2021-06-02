@@ -1,5 +1,4 @@
-#define ULTRASONIC_TRIG A5 
-#define ULTRASONIC_ECHO A4
+#include "RobotMap.h"
 
 // Useful constants for ultrasonic calculations
 #define MAX_DISTANCE 4500 // mm, some sensors are max 4000

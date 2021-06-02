@@ -1,23 +1,8 @@
+#include "RobotMap.h"
 #include "TankDriveSide.h"
 #include "WheelEncoder.h"
 
-// Motor pins
-#define L298_ENA_PIN  5
-#define L298_ENB_PIN  6
-#define L298_IN1_PIN  7
-#define L298_IN2_PIN  8
-#define L298_IN3_PIN  12  // Was 9
-#define L298_IN4_PIN  11
-
-// Encoder pins and defines
-#define LEFT_ENCODER_PIN    2
-#define RIGHT_ENCODER_PIN   3
 #define TICKS_TO_MM_FACTOR  (109/280.0)
-
-// Line follower pins
-#define LINE_LEFT_PIN   A0  // Was 2
-#define LINE_MIDDLE_PIN A1  // Was 4
-#define LINE_RIGHT_PIN  A2  // Was 10
 
 enum States {
   idle = 0,
@@ -49,8 +34,8 @@ public:
   Drivetrain(): 
     m_leftSide(L298_ENA_PIN, L298_IN1_PIN, L298_IN2_PIN),
     m_rightSide(L298_ENB_PIN, L298_IN4_PIN, L298_IN3_PIN),
-    m_leftEncoder(LEFT_ENCODER_PIN, true),
-    m_rightEncoder(RIGHT_ENCODER_PIN, false) {
+    m_leftEncoder(LEFT_WHEEL_ENCODER_PIN, true),
+    m_rightEncoder(RIGHT_WHEEL_ENCODER_PIN, false) {
 
       pinMode(LINE_LEFT_PIN, INPUT);
       pinMode(LINE_MIDDLE_PIN, INPUT);

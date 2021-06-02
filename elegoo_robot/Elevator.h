@@ -1,17 +1,16 @@
+#include "RobotMap.h"
 #include <Servo.h>
-
-#define SERVO_PIN           10
-#define UPPER_LIMIT_SWITCH  4
-#define LOWER_LIMIT_SWITCH  A3
 
 class Elevator {
 private:
   Servo raiseLowerServo;
 public:
+  ////////////////////////////////////////////////////////////////////
+  // Constructor
   Elevator() {
-    pinMode(LOWER_LIMIT_SWITCH, INPUT_PULLUP);
-    pinMode(UPPER_LIMIT_SWITCH, INPUT_PULLUP);
-    raiseLowerServo.attach(SERVO_PIN);
+    pinMode(ELEVATOR_LOWER_LIMIT_SWITCH_PIN, INPUT_PULLUP);
+    pinMode(ELEVATOR_UPPER_LIMIT_SWITCH_PIN, INPUT_PULLUP);
+    raiseLowerServo.attach(ELEVATOR_SERVO_PIN);
     raiseLowerServo.write(90);
   }
 
@@ -45,13 +44,13 @@ public:
   // Returns true of elevator is at the lower limit
   bool isAtLowerLimit() {
     // Switch is wired to read 1 when elevator is at the limit
-    return digitalRead(LOWER_LIMIT_SWITCH);
+    return digitalRead(ELEVATOR_LOWER_LIMIT_SWITCH_PIN);
   }
 
   ////////////////////////////////////////////////////////////////////
   // Returns true of elevator is at the upper limit
   bool isAtUpperLimit() {
     // Switch is wired to read 1 when elevator is at the limit
-    return digitalRead(UPPER_LIMIT_SWITCH);
+    return digitalRead(ELEVATOR_UPPER_LIMIT_SWITCH_PIN);
   }
 };

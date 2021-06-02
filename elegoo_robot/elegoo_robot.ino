@@ -4,15 +4,12 @@
 // Max robot size W x L x H (starting): 7.65" x 13.91" x 10" (19.43cm x 35.33cm x 25.4cm), current 18.1 x 33.5 x 22.6cm
 // Max robot size W x L x H (game): 10" x 16" x unlimited (25.4cm x 40.64cm), current 18.1 x 36 x 36cm
 
-#include <Servo.h>
 #include "Drivetrain.h"
 #include "DriverStation.h"
+#include "Gripper.h"
 #include "Elevator.h"
 #include "UltrasonicSensor.h"
 
-
-// Add-on hardware configuration
-#define GRIPPER_SERVO_PIN   9
 
 // Controller Settings
 #define JOYSTICK_DEADBAND   8
@@ -29,8 +26,9 @@
 Drivetrain drivetrain;  // DC motors, etc.
 DriverStation ds;       // Joystick/controller and game flow
 Elevator elevator;
-Servo gripperServo;
+Gripper gripper;
 UltrasonicSensor ultrasonic;
+
 
 // Globals
 bool firstTimeInAuto = true;
@@ -39,9 +37,7 @@ bool commandRunning = false;
 
 void setup() {
   Serial.begin( 115200 );
-  Serial.println( "Elegoo Robot v2.4" );
-  gripperServo.attach( GRIPPER_SERVO_PIN );
-  gripperServo.write(0);
+  Serial.println( "Elegoo Robot v3.0" );
 }
 
 
@@ -56,6 +52,7 @@ void autonomous() {
 //
 //  drivetrain.updateAuto();
 }
+
 
 // Teleop mode
 // Called 10 times per second
@@ -109,11 +106,11 @@ void teleop() {
   // These buttons can interrupt commands
   // Gripper
   if(ds.getButton(GRIPPER_OPEN_BTN)) {
-    gripperServo.write(0);
+    gripper.open();
     // Interrupt command if running
   }
   else if(ds.getButton(GRIPPER_CLOSE_BTN)) {
-    gripperServo.write(60);
+    gripper.close();
     // Interrupt command if running
   }
 }
@@ -143,6 +140,7 @@ void loop() {
   }
 }
 
+
 #define COMMAND_2ND_CUP 1
 void commandHandler() {
   static int commandId = COMMAND_2ND_CUP;  // TODO: move these
@@ -162,7 +160,7 @@ void commandHandler() {
     switch(commandStage) {
     case 0:
       // Open gripper (first cup falls into second cup)
-      gripperServo.write(0);
+      gripper.open();
       commandStage++;
       // Wait until gripper opens and cup falls
       // TODO: Set timer
@@ -198,7 +196,7 @@ void commandHandler() {
       if(drivetrain.isAutoIdle()) {
         commandStage++;
         // Close the gripper to grab the cups and then wait for things to stabilize
-        gripperServo.write(60);
+        gripper.close();
         // TODO: Set timer
       }
       break;
@@ -220,9 +218,6 @@ void commandHandler() {
       }
       break;
     }
-    break;
-    
-    
+    break;    
   }
-  
 }
