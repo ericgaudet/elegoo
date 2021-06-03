@@ -142,6 +142,13 @@ public:
   }
 
   ////////////////////////////////////////////////////////////////////
+  // Aborts an auto maneuver
+  void abortAuto() {
+    m_state = idle;
+    setPower(0, 0);
+  }
+
+  ////////////////////////////////////////////////////////////////////
   // Auto Distance (in mm)
   void autoDistance(int distance) {
     // Immediate stop condition
