@@ -12,12 +12,13 @@
 #include "UltrasonicSensor.h"
 
 
-// Enable/Disable command tracing
+// For debugging purposes
 #if 1
   #define TRACE(x)  Serial.println(x)
 #else
   #define TRACE(x)
 #endif
+
 
 // Controller Settings
 #define JOYSTICK_DEADBAND   8
@@ -60,12 +61,14 @@ struct CommandSequenceController {
 } g_cmdSeqCtrl;
 
 
-
 void setup() {
   g_cmdSeqCtrl.isRunning = false;
+  drivetrain.drive(0, 0);
+  elevator.init();
+  gripper.init();
   
   Serial.begin( 115200 );
-  Serial.println( "Elegoo Robot v3.0" );
+  Serial.println( "Elegoo Robot v3.1" );
 }
 
 
@@ -87,6 +90,7 @@ void loop() {
       
       // During Pre and Post game, the Elegoo should not move!
       drivetrain.setPower(0, 0);
+      elevator.setPower(0);
       break;
       
     case eAutonomous:

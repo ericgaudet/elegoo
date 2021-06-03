@@ -12,7 +12,11 @@ private:
 public:
   ////////////////////////////////////////////////////////////////////
   // Constructor
-  Gripper() {
+  Gripper() {}
+
+  ////////////////////////////////////////////////////////////////////
+  // Initializer (constructor wasn't a good place to do this)
+  void init() {
     servo.attach(GRIPPER_SERVO_PIN);
     open();
   }

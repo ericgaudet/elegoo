@@ -1,3 +1,6 @@
+#ifndef ROBOTMAP_H
+#define ROBOTMAP_H
+
 // Mapping of Arduino pins to hardware
 //#define ESP-01 RX                       0
 //#define ESP-01 TX                       1
@@ -19,3 +22,6 @@
 #define ELEVATOR_LOWER_LIMIT_SWITCH_PIN A3
 #define ULTRASONIC_ECHO                 A4
 #define ULTRASONIC_TRIG                 A5 
+
+
+#endif // ROBOTMAP_H

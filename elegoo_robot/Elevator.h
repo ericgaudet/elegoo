@@ -9,13 +9,17 @@ private:
 public:
   ////////////////////////////////////////////////////////////////////
   // Constructor
-  Elevator() {
+  Elevator() {}
+
+  ////////////////////////////////////////////////////////////////////
+  // Initializer (constructor wasn't a good place to do this)
+  void init() {
     pinMode(ELEVATOR_LOWER_LIMIT_SWITCH_PIN, INPUT_PULLUP);
     pinMode(ELEVATOR_UPPER_LIMIT_SWITCH_PIN, INPUT_PULLUP);
     raiseLowerServo.attach(ELEVATOR_SERVO_PIN);
-    raiseLowerServo.write(90);
+    setPower(0);
   }
-
+  
   ////////////////////////////////////////////////////////////////////
   // Set the elevator power (-256 to 256, negative is down)
   void setPower(int power) {
@@ -26,7 +30,7 @@ public:
     // -  0..256 = servor 90 to 0
     if(power < 0) {
       // Lower elevator
-      servoPower = power * 90;
+      servoPower = -power * 90;
       servoPower >>= 8; // divide by 256
       servoPower = 90 + servoPower;   
     }
