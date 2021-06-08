@@ -4,20 +4,20 @@
 #include "TankDriveSide.h"
 #include "WheelEncoder.h"
 
-#define TICKS_TO_MM_FACTOR  (109/280.0)
+// Constants
+#define AUTO_STRAIGHT_POWER         128
+#define AUTO_TURN_POWER             196
+#define LINE_FOLLOW_STRAIGHT_POWER  128
+#define LINE_FOLLOW_TURN_POWER      128
+#define TICKS_TO_MM_FACTOR          (109/280.0)
+#define WHEEL_BASE_MM               125.0
 
 enum States {
   idle = 0,
   straight,
-  rotate
+  rotate,
+  lineFollower
 };
-
-// Constants
-#define AUTO_STRAIGHT_POWER         128
-#define AUTO_TURN_POWER             128
-#define LINE_FOLLOW_STRAIGHT_POWER  128
-#define LINE_FOLLOW_TURN_POWER      128
-#define WHEEL_BASE_MM               100
 
 class Drivetrain {
 private:
@@ -121,6 +121,11 @@ public:
     case rotate:
       // Check if we've gotten to the target distance (take into account the direction)
       ticks = m_leftEncoder.getDistanceInTicks();
+      ////////////
+      Serial.print(ticks);
+      Serial.print(":");
+      Serial.println(m_leftTargetTicks);
+      ///////////
       if((m_leftTargetTicks >= 0 && (ticks >= m_leftTargetTicks)) ||
          (m_leftTargetTicks < 0 && (ticks <= m_leftTargetTicks))) {
         setPower(0, 0);
@@ -132,6 +137,11 @@ public:
         Serial.println(")");
       }
       break;
+
+    case lineFollower:
+      autoLineFollow();
+      break;
+
     }
   }
 
@@ -197,6 +207,12 @@ public:
     m_leftTargetTicks = m_leftEncoder.getNumTicksInDistance(distance);
     m_rightTargetTicks = m_rightEncoder.getNumTicksInDistance(distance);
 
+    Serial.print("AutoRotate: ");
+    Serial.print(deg);
+    Serial.print("deg=");
+    Serial.print(m_leftTargetTicks);
+    Serial.println("ticks");
+
     // Reset the encoders and set the direction of motion
     m_leftEncoder.reset();
     m_rightEncoder.reset();
@@ -205,10 +221,10 @@ public:
 
     // Start the motors
     if(distance > 0) {
-      setPower(-AUTO_TURN_POWER, AUTO_TURN_POWER);
+      setPower(AUTO_TURN_POWER, -AUTO_TURN_POWER);
     }
     else {
-      setPower(AUTO_TURN_POWER, -AUTO_TURN_POWER);
+      setPower(-AUTO_TURN_POWER, AUTO_TURN_POWER);
     }
 
     // Start the state machine

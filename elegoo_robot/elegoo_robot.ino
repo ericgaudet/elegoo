@@ -37,7 +37,7 @@
 //#define 9   // START
 #define CANCEL1_BTN         10  // L3
 #define CANCEL2_BTN         11  // R3
-//#define 12  // D-Up
+#define TEST_BTN            12  // D-Up
 //#define 13  // D-Down
 //#define 14  // D-Left
 //#define 15  // D-Right
@@ -208,6 +208,10 @@ void teleop() {
     }
     else if(ds.getButton(GRAB_2ND_CUP_BTN)) {
       g_cmdSeqCtrl.handleCmdSeq = &handle2ndCupPickup;
+      g_cmdSeqCtrl.isRunning = true;
+    }
+    else if(ds.getButton(TEST_BTN)) {
+      g_cmdSeqCtrl.handleCmdSeq = &handleTest;
       g_cmdSeqCtrl.isRunning = true;
     }
     
@@ -381,5 +385,34 @@ void handle2ndCupPickup() {
     drivetrain.drive(0, 0);
     elevator.setPower(0);
     TRACE("CMD DONE: 2nd cup");
+  }
+}
+
+
+////////////////////////////////////////////////////////////////////
+// Use this function to implement temporary test code
+void handleTest() {
+  if(g_cmdSeqCtrl.isRunning) {
+    switch(g_cmdSeqCtrl.curStep) {
+    case 0:
+      // Start turning
+      drivetrain.autoRotate(180);
+      g_cmdSeqCtrl.curStep++;
+      break;
+    case 1:
+      drivetrain.updateAuto();
+      if(drivetrain.isAutoIdle()) {
+        g_cmdSeqCtrl.isRunning = false;
+      }
+      break;
+    }
+  }
+  
+  // If command finished or was stopped, clean up
+  if(!g_cmdSeqCtrl.isRunning) {
+    drivetrain.abortAuto();
+    drivetrain.drive(0, 0);
+    elevator.setPower(0);
+    TRACE("CMD DONE: Test");
   }
 }
