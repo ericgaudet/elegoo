@@ -37,10 +37,10 @@
 //#define 9   // START
 #define CANCEL1_BTN         10  // L3
 #define CANCEL2_BTN         11  // R3
-#define TEST_BTN            12  // D-Up
+//#define 12  // D-Up
 //#define 13  // D-Down
-//#define 14  // D-Left
-//#define 15  // D-Right
+#define GRAB_1ST_CUP_L_BTN  14  // D-Left
+#define GRAB_1ST_CUP_R_BTN  15  // D-Right
 
 
 // Create hardware objects
@@ -55,9 +55,10 @@ UltrasonicSensor ultrasonic;
 // Globals
 bool g_firstTimeInAuto = true;
 struct CommandSequenceController {
-  bool isRunning;
-  void (*handleCmdSeq)(void);
-  int curStep;  
+  bool isRunning;             // Whether or not a command is running
+  void (*handleCmdSeq)(void); // Function pointer to the command handler
+  int param;                  // Parameter for function (use varies by handler)
+  int curStep;                // Current step in the command sequence
 } g_cmdSeqCtrl;
 
 
@@ -203,15 +204,18 @@ void teleop() {
       g_cmdSeqCtrl.handleCmdSeq = &handleElevatorToTop;
       g_cmdSeqCtrl.isRunning = true;
     }
-    else if(ds.getButton(PICKUP_CUP_BTN)) {
-      
+    else if(ds.getButton(GRAB_1ST_CUP_L_BTN)) {
+      g_cmdSeqCtrl.handleCmdSeq = &handle1stCupPickup;
+      g_cmdSeqCtrl.param = 0; // 0 = left-hand turn
+      g_cmdSeqCtrl.isRunning = true;
+    }
+    else if(ds.getButton(GRAB_1ST_CUP_R_BTN)) {
+      g_cmdSeqCtrl.handleCmdSeq = &handle1stCupPickup;
+      g_cmdSeqCtrl.param = 1; // 1 = right-hand turn
+      g_cmdSeqCtrl.isRunning = true;
     }
     else if(ds.getButton(GRAB_2ND_CUP_BTN)) {
       g_cmdSeqCtrl.handleCmdSeq = &handle2ndCupPickup;
-      g_cmdSeqCtrl.isRunning = true;
-    }
-    else if(ds.getButton(TEST_BTN)) {
-      g_cmdSeqCtrl.handleCmdSeq = &handleTest;
       g_cmdSeqCtrl.isRunning = true;
     }
     
@@ -222,6 +226,7 @@ void teleop() {
     }
       
   }
+
 }
 
 
@@ -286,11 +291,95 @@ void handleElevatorToTop() {
 
 
 ////////////////////////////////////////////////////////////////////
-// Rotate the robot left and right using the ultrasonic sensor to 
+// Rotate the robot left or right using the ultrasonic sensor to 
 // detect the cup position.  Once it's in front of the robot, drive
 // up to it and grip it.
-void handlePickupCup() {
-  // TODO: Implement
+#define MAX_SEARCH_ROTATE_DEG 90
+#define MAX_CUP_DISTANCE_MM 200
+#define CUP_PICKUP_DISTANCE_MM  50
+void handle1stCupPickup() {
+  static int distanceToDrive = 0;
+  
+  if(g_cmdSeqCtrl.isRunning) {
+    switch(g_cmdSeqCtrl.curStep) {
+    case 0:
+      // Raise elevator
+      elevator.setPower(256);
+      g_cmdSeqCtrl.curStep++;
+      break;
+
+    case 1:
+      // Check if elevator is raised
+      if(elevator.isAtUpperLimit()) {
+        elevator.setPower(0);
+        // Open the gripper
+        gripper.open();
+        g_cmdSeqCtrl.curStep++;
+        // Wait until gripper opens and cup falls
+        timer.set(500);
+      }
+      break;
+      
+    case 2:
+      // Check if we've waited long enough
+      if(timer.isExpired()) {
+        // Start turning
+        // param = 0 means left turn, 1 means right turn
+        drivetrain.autoRotate((g_cmdSeqCtrl.param == 0) ? -MAX_SEARCH_ROTATE_DEG : MAX_SEARCH_ROTATE_DEG);
+        g_cmdSeqCtrl.curStep++;
+      }
+      break;
+    
+    case 3:
+      drivetrain.updateAuto();
+      if(drivetrain.isAutoIdle()) {
+        // Quit if we've turned too far and haven't found a cup
+        g_cmdSeqCtrl.isRunning = false;
+      }
+      else {
+        // Check if we've found a cup close by
+        int distance = ultrasonic.getDistanceMm();
+        if((distance > 0) && (distance < MAX_CUP_DISTANCE_MM)) {
+          // Stop turning and calculate how far we are from the cup
+          drivetrain.abortAuto();
+          TRACE(distance);
+          distanceToDrive = distance - CUP_PICKUP_DISTANCE_MM;
+          // Lower elevator
+          elevator.setPower(-256);
+          g_cmdSeqCtrl.curStep++;
+        }       
+      }
+      break;
+    
+    case 4:
+      // Check if elevator is lowered
+      if(elevator.isAtLowerLimit()) {
+        elevator.setPower(0);
+        // Drive to the cup using pre-calculated distance
+        drivetrain.autoDistance(distanceToDrive);
+        g_cmdSeqCtrl.curStep++;
+      }
+      break;
+
+    case 5:
+      // Update the drivetrain state machine and check if the move is done
+      drivetrain.updateAuto();
+      if(drivetrain.isAutoIdle()) {
+        // Close the gripper to grab the cup and then wait for things to stabilize
+        gripper.close();
+        g_cmdSeqCtrl.isRunning = false;
+      }
+      break;
+    }
+  }
+  
+  // If command finished or was stopped, clean up
+  if(!g_cmdSeqCtrl.isRunning) {
+    drivetrain.abortAuto();
+    drivetrain.drive(0, 0);
+    elevator.setPower(0);
+    TRACE("CMD DONE: Test");
+  }
 }
 
 
@@ -385,34 +474,5 @@ void handle2ndCupPickup() {
     drivetrain.drive(0, 0);
     elevator.setPower(0);
     TRACE("CMD DONE: 2nd cup");
-  }
-}
-
-
-////////////////////////////////////////////////////////////////////
-// Use this function to implement temporary test code
-void handleTest() {
-  if(g_cmdSeqCtrl.isRunning) {
-    switch(g_cmdSeqCtrl.curStep) {
-    case 0:
-      // Start turning
-      drivetrain.autoRotate(180);
-      g_cmdSeqCtrl.curStep++;
-      break;
-    case 1:
-      drivetrain.updateAuto();
-      if(drivetrain.isAutoIdle()) {
-        g_cmdSeqCtrl.isRunning = false;
-      }
-      break;
-    }
-  }
-  
-  // If command finished or was stopped, clean up
-  if(!g_cmdSeqCtrl.isRunning) {
-    drivetrain.abortAuto();
-    drivetrain.drive(0, 0);
-    elevator.setPower(0);
-    TRACE("CMD DONE: Test");
   }
 }

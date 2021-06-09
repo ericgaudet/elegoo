@@ -121,11 +121,6 @@ public:
     case rotate:
       // Check if we've gotten to the target distance (take into account the direction)
       ticks = m_leftEncoder.getDistanceInTicks();
-      ////////////
-      Serial.print(ticks);
-      Serial.print(":");
-      Serial.println(m_leftTargetTicks);
-      ///////////
       if((m_leftTargetTicks >= 0 && (ticks >= m_leftTargetTicks)) ||
          (m_leftTargetTicks < 0 && (ticks <= m_leftTargetTicks))) {
         setPower(0, 0);
