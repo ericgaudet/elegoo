@@ -23,7 +23,6 @@
 // Controller Settings
 #define JOYSTICK_DEADBAND   8
 
-
 // Button IDs, from idx 0 (Logitech F310/F710)
 #define PICKUP_CUP_BTN      0   // A (Green, bottom)
 #define GRIPPER_CLOSE_BTN   1   // B (Red, right)
@@ -33,14 +32,20 @@
 #define ELEVATOR_TO_TOP_BTN 5   // RB
 //#define 6   // LT - used as throttle
 //#define 7   // RT - used as throttle
-//#define 8   // BACK
-//#define 9   // START
+#define GRAB_2ND_CUP_L_BTN  8   // BACK
+#define GRAB_2ND_CUP_R_BTN  9   // START
 #define CANCEL1_BTN         10  // L3
 #define CANCEL2_BTN         11  // R3
 //#define 12  // D-Up
 //#define 13  // D-Down
 #define GRAB_1ST_CUP_L_BTN  14  // D-Left
 #define GRAB_1ST_CUP_R_BTN  15  // D-Right
+
+// Command settings
+#define MAX_SEARCH_ROTATE_DEG   90
+#define MAX_CUP_DISTANCE_MM     200
+#define CUP_PICKUP_DISTANCE_MM  50
+#define CUP_BACKOFF_DISTANCE_MM 30
 
 
 // Create hardware objects
@@ -62,6 +67,8 @@ struct CommandSequenceController {
 } g_cmdSeqCtrl;
 
 
+////////////////////////////////////////////////////////////////////
+// Arduino setup function.  Called on power-up.
 void setup() {
   g_cmdSeqCtrl.isRunning = false;
   drivetrain.drive(0, 0);
@@ -73,6 +80,8 @@ void setup() {
 }
 
 
+////////////////////////////////////////////////////////////////////
+// Main Arduino loop function.  Called continuously
 void loop() {
   // Update the Driver Station state and check if new data has been received (10 times/second)
   if(ds.bUpdate()) {
@@ -113,6 +122,7 @@ void loop() {
 }
 
 
+////////////////////////////////////////////////////////////////////
 // Autonomous mode
 // Called 10 times per second
 void autonomous() {
@@ -126,6 +136,7 @@ void autonomous() {
 }
 
 
+////////////////////////////////////////////////////////////////////
 // Teleop mode
 // Called 10 times per second
 // In this function, look for changes in the controls and trigger the appropriate reaction.
@@ -218,6 +229,16 @@ void teleop() {
       g_cmdSeqCtrl.handleCmdSeq = &handle2ndCupPickup;
       g_cmdSeqCtrl.isRunning = true;
     }
+    else if(ds.getButton(GRAB_2ND_CUP_L_BTN)) {
+      g_cmdSeqCtrl.handleCmdSeq = &handle2ndCupPickupWithRotate;
+      g_cmdSeqCtrl.param = 0; // 0 = left-hand turn
+      g_cmdSeqCtrl.isRunning = true;
+    }
+    else if(ds.getButton(GRAB_2ND_CUP_R_BTN)) {
+      g_cmdSeqCtrl.handleCmdSeq = &handle2ndCupPickupWithRotate;
+      g_cmdSeqCtrl.param = 1; // 1 = right-hand turn
+      g_cmdSeqCtrl.isRunning = true;
+    }    
     
     // If a new command has started, start running it now
     if(g_cmdSeqCtrl.isRunning) {
@@ -294,9 +315,6 @@ void handleElevatorToTop() {
 // Rotate the robot left or right using the ultrasonic sensor to 
 // detect the cup position.  Once it's in front of the robot, drive
 // up to it and grip it.
-#define MAX_SEARCH_ROTATE_DEG 90
-#define MAX_CUP_DISTANCE_MM 200
-#define CUP_PICKUP_DISTANCE_MM  50
 void handle1stCupPickup() {
   static int distanceToDrive = 0;
   
@@ -474,5 +492,113 @@ void handle2ndCupPickup() {
     drivetrain.drive(0, 0);
     elevator.setPower(0);
     TRACE("CMD DONE: 2nd cup");
+  }
+}
+
+
+////////////////////////////////////////////////////////////////////
+// Same as the previous 2nd-cup grab function but rotates to find
+// the second cup first.
+void handle2ndCupPickupWithRotate() {  
+  // Make sure the sequence hasn't been cancelled
+  if(g_cmdSeqCtrl.isRunning) {
+    switch(g_cmdSeqCtrl.curStep) {
+   case 0:
+      // Raise elevator
+      TRACE("CMD: 2nd cup rot");
+      elevator.setPower(256);
+      g_cmdSeqCtrl.curStep++;
+      break;
+
+    case 1:
+      // Check if elevator is raised
+      if(elevator.isAtUpperLimit()) {
+        elevator.setPower(0);
+        // Start turning
+        // param = 0 means left turn, 1 means right turn
+        drivetrain.autoRotate((g_cmdSeqCtrl.param == 0) ? -MAX_SEARCH_ROTATE_DEG : MAX_SEARCH_ROTATE_DEG);
+        g_cmdSeqCtrl.curStep++;
+      }
+      break;
+    
+    case 2:
+      drivetrain.updateAuto();
+      if(drivetrain.isAutoIdle()) {
+        // Quit if we've turned too far and haven't found a cup
+        g_cmdSeqCtrl.isRunning = false;
+      }
+      else {
+        // Check if we've found a cup close by
+        int distance = ultrasonic.getDistanceMm();
+        if((distance > 0) && (distance < MAX_CUP_DISTANCE_MM)) {
+          // Stop turning and calculate how far we are from the cup
+          drivetrain.abortAuto();
+          TRACE(distance);
+          // Drive to the cup
+          drivetrain.autoDistance(distance - CUP_PICKUP_DISTANCE_MM);
+          g_cmdSeqCtrl.curStep++;
+        }
+      }
+      break;
+
+    case 3:
+      // Update the drivetrain state machine and check if the move is done
+      drivetrain.updateAuto();
+      if(drivetrain.isAutoIdle()) {
+        // Open gripper to let 1st cup drop into 2nd one
+        gripper.open();
+        // Wait until gripper opens and cup falls
+        timer.set(500);
+        g_cmdSeqCtrl.curStep++;
+      }
+      break;
+      
+    case 4:
+      // Check if we've waited long enough
+      if(timer.isExpired()) {
+        // Back up a bit (so elevator doesn't hit cups on way down)
+        drivetrain.autoDistance(-CUP_BACKOFF_DISTANCE_MM);
+        g_cmdSeqCtrl.curStep++;
+      }
+      break;
+      
+    case 5:
+      // Update the drivetrain state machine and check if the move is done
+      drivetrain.updateAuto();
+      if(drivetrain.isAutoIdle()) {
+        // Lower elevator to pick-up-height
+        elevator.setPower(-256);
+        g_cmdSeqCtrl.curStep++;
+      }
+      break;
+      
+    case 6:
+      // Check if elevator is lowered
+      if(elevator.isAtLowerLimit()) {
+        // Stop the elevator and drive forward 30mm
+        elevator.setPower(0);
+        drivetrain.autoDistance(CUP_BACKOFF_DISTANCE_MM);
+        g_cmdSeqCtrl.curStep++;
+      }
+      break;
+      
+    case 7:
+      // Update the drivetrain state machine and check if the move is done
+      drivetrain.updateAuto();
+      if(drivetrain.isAutoIdle()) {
+        // Close the gripper to grab the cups and done
+        gripper.close();
+        g_cmdSeqCtrl.isRunning = false;
+      }
+      break;
+    }
+  }
+
+  // If command finished or was stopped, clean up
+  if(!g_cmdSeqCtrl.isRunning) {
+    drivetrain.abortAuto();
+    drivetrain.drive(0, 0);
+    elevator.setPower(0);
+    TRACE("CMD DONE: 2nd cup rot");
   }
 }
