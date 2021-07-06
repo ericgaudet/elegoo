@@ -23,5 +23,7 @@
 #define ULTRASONIC_ECHO                 A4
 #define ULTRASONIC_TRIG                 A5 
 
+// Debug modes
+//#define DRIVE_ONLY  1
 
 #endif // ROBOTMAP_H

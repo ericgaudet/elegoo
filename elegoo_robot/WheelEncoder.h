@@ -12,7 +12,12 @@ void leftTickIsr(void) {
   else {
     g_leftCount--;
   }
+#ifdef DRIVE_ONLY
+  Serial.print("L");
+  Serial.println(g_leftCount);
+#endif
 }
+
 void rightTickIsr(void) {
   if(g_rightDirectionForward) {
     g_rightCount++;
@@ -20,6 +25,10 @@ void rightTickIsr(void) {
   else {
     g_rightCount--;
   }
+#ifdef DRIVE_ONLY
+  Serial.print("R");
+  Serial.println(g_rightCount);
+#endif
 }
 
 // Now the class
@@ -31,7 +40,12 @@ private:
   float m_ticksToMmFactor;
 
 public:
-  WheelEncoder(int encoderPin, bool leftSide) {
+  WheelEncoder() {}
+
+
+  ////////////////////////////////////////////////////////////////////
+  // Initializer (constructor wasn't a good place to do this)
+  void init(int encoderPin, bool leftSide) {
     m_encoderPin = encoderPin;
     m_ticksToMmFactor = 1.0;
 
@@ -40,12 +54,12 @@ public:
     if( leftSide ) {
       m_pCount = &g_leftCount;
       m_pForward = &g_leftDirectionForward;
-      attachInterrupt(digitalPinToInterrupt(m_encoderPin), leftTickIsr, CHANGE);
+      attachInterrupt(digitalPinToInterrupt(m_encoderPin), leftTickIsr, RISING /*CHANGE*/);
     }
     else {
       m_pCount = &g_rightCount;
       m_pForward = &g_rightDirectionForward;
-      attachInterrupt(digitalPinToInterrupt(m_encoderPin), rightTickIsr, CHANGE);
+      attachInterrupt(digitalPinToInterrupt(m_encoderPin), rightTickIsr, RISING /*CHANGE*/);
     } 
   }
 

@@ -8,7 +8,11 @@ private:
 
 public:
   // Constructor
-  TankDriveSide(int enPin, int in1Pin, int in2Pin) {
+  TankDriveSide() {}
+
+  ////////////////////////////////////////////////////////////////////
+  // Initializer (constructor wasn't a good place to do this)
+  void init(int enPin, int in1Pin, int in2Pin) {
     m_enPin = enPin;
     m_in1Pin = in1Pin;
     m_in2Pin = in2Pin;
@@ -21,7 +25,7 @@ public:
     m_curPower = 0;
     digitalWrite(m_in1Pin, LOW);
     digitalWrite(m_in2Pin, LOW);
-    analogWrite(m_enPin, m_curPower);  
+    analogWrite(m_enPin, m_curPower); 
   }
 
   // Set the motors on this side to specified power (0..255)

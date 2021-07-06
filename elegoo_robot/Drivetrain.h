@@ -9,7 +9,7 @@
 #define AUTO_TURN_POWER             224
 #define LINE_FOLLOW_STRAIGHT_POWER  128
 #define LINE_FOLLOW_TURN_POWER      128
-#define TICKS_TO_MM_FACTOR          (345/1810.0) //(109/280.0)
+#define TICKS_TO_MM_FACTOR          (125/280.0)  //(345/1810.0)
 #define WHEEL_BASE_MM               125.0
 
 enum States {
@@ -34,20 +34,30 @@ private:
 public:
   // Constructor
   Drivetrain(): 
-    m_leftSide(L298_ENA_PIN, L298_IN1_PIN, L298_IN2_PIN),
-    m_rightSide(L298_ENB_PIN, L298_IN4_PIN, L298_IN3_PIN),
-    m_leftEncoder(LEFT_WHEEL_ENCODER_PIN, true),
-    m_rightEncoder(RIGHT_WHEEL_ENCODER_PIN, false) {
+    m_leftSide(),
+    m_rightSide(),
+    m_leftEncoder(),
+    m_rightEncoder() {}
 
-      pinMode(LINE_LEFT_PIN, INPUT);
-      pinMode(LINE_MIDDLE_PIN, INPUT);
-      pinMode(LINE_RIGHT_PIN, INPUT);
-      
-      m_leftEncoder.setTicksToDistanceFactor(TICKS_TO_MM_FACTOR);
-      m_rightEncoder.setTicksToDistanceFactor(TICKS_TO_MM_FACTOR);
-      m_leftTargetTicks = 0;
-      m_rightTargetTicks = 0;
-      m_state = idle;
+
+  ////////////////////////////////////////////////////////////////////
+  // Initializer (constructor wasn't a good place to do this)
+  void init() {
+    m_leftSide.init(L298_ENA_PIN, L298_IN1_PIN, L298_IN2_PIN);
+    m_rightSide.init(L298_ENB_PIN, L298_IN4_PIN, L298_IN3_PIN);
+    m_leftEncoder.init(LEFT_WHEEL_ENCODER_PIN, true);
+    m_rightEncoder.init(RIGHT_WHEEL_ENCODER_PIN, false);
+
+    pinMode(LINE_LEFT_PIN, INPUT);
+    pinMode(LINE_MIDDLE_PIN, INPUT);
+    pinMode(LINE_RIGHT_PIN, INPUT);
+    
+    m_leftEncoder.setTicksToDistanceFactor(TICKS_TO_MM_FACTOR);
+    m_rightEncoder.setTicksToDistanceFactor(TICKS_TO_MM_FACTOR);
+    m_leftTargetTicks = 0;
+    m_rightTargetTicks = 0;
+    m_state = idle;
+    setPower(0, 0);
   }
 
   ////////////////////////////////////////////////////////////////////

@@ -72,12 +72,12 @@ struct CommandSequenceController {
 // Arduino setup function.  Called on power-up.
 void setup() {
   g_cmdSeqCtrl.isRunning = false;
-  drivetrain.drive(0, 0);
+  drivetrain.init();
   elevator.init();
   gripper.init();
   
   Serial.begin( 115200 );
-  Serial.println( "Elegoo Robot v3.1" );
+  Serial.println( "Elegoo Robot v4.0" );
 }
 
 
@@ -127,13 +127,7 @@ void loop() {
 // Autonomous mode
 // Called 10 times per second
 void autonomous() {
-//  if(g_firstTimeInAuto) {
-//    g_firstTimeInAuto = false;
-//    Serial.println("Driving for 200mm");
-//    drivetrain.autoDistance(200);
-//  }
-//
-//  drivetrain.updateAuto();
+
 }
 
 
@@ -143,6 +137,19 @@ void autonomous() {
 // In this function, look for changes in the controls and trigger the appropriate reaction.
 // Do the control stuff in the main loop as it runs much more frequently (quicker reaction time).
 void teleop() {
+#ifdef DRIVE_ONLY
+    int drivePower = ds.getLY();
+    int rotatePower = ds.getRX();
+  
+    // Count small joystick values as 0
+    if(drivePower > -JOYSTICK_DEADBAND && drivePower < JOYSTICK_DEADBAND) {
+      drivePower = 0;
+    }
+    if(rotatePower > -JOYSTICK_DEADBAND && rotatePower < JOYSTICK_DEADBAND) {
+      rotatePower = 0;
+    }
+    drivetrain.drive(drivePower, rotatePower);
+#else
   // Check for the command-cancel buttons
   if(ds.getButton(CANCEL1_BTN) || ds.getButton(CANCEL2_BTN)) {
     // Make sure there's something to cancel
@@ -217,12 +224,12 @@ void teleop() {
       g_cmdSeqCtrl.isRunning = true;
     }
     else if(ds.getButton(ALIGN_TO_CUP_L_BTN)) {
-      g_cmdSeqCtrl.handleCmdSeq = &handleAlignToCup;
+      g_cmdSeqCtrl.handleCmdSeq = &handleAlignToCup; //handleScanAndAlignToCup
       g_cmdSeqCtrl.param = 0; // 0 = left-hand turn
       g_cmdSeqCtrl.isRunning = true;
     }
     else if(ds.getButton(ALIGN_TO_CUP_R_BTN)) {
-      g_cmdSeqCtrl.handleCmdSeq = &handleAlignToCup;
+      g_cmdSeqCtrl.handleCmdSeq = &handleAlignToCup; //handleScanAndAlignToCup
       g_cmdSeqCtrl.param = 1; // 1 = right-hand turn
       g_cmdSeqCtrl.isRunning = true;
     }
@@ -255,7 +262,7 @@ void teleop() {
     }
       
   }
-
+#endif
 }
 
 
@@ -388,6 +395,71 @@ void handleAlignToCup() {
     elevator.setPower(0);
     printDistanceLog();
     TRACE("CMD DONE: Align");
+  }
+}
+
+
+////////////////////////////////////////////////////////////////////
+// Scan an arc for a cup and align to the middle of the detection
+// range.  Can rotate left of right.
+void handleScanAndAlignToCup() {
+  static bool foundPossibleCup = false;
+  
+  if(g_cmdSeqCtrl.isRunning) {
+    switch(g_cmdSeqCtrl.curStep) {
+    case 0:
+      g_cmdSeqCtrl.lastAlignDistance = 0;
+      resetDistanceLog();
+      
+      // Raise elevator
+      elevator.setPower(256);
+      g_cmdSeqCtrl.curStep++;
+      break;
+
+    case 1:
+      // Check if elevator is raised
+      if(elevator.isAtUpperLimit()) {
+        elevator.setPower(0);
+
+        // Scan a full arc
+        // param = 0 means left turn, 1 means right turn
+        drivetrain.autoRotate((g_cmdSeqCtrl.param == 0) ? -MAX_SEARCH_ROTATE_DEG : MAX_SEARCH_ROTATE_DEG);
+        g_cmdSeqCtrl.curStep++;
+      }
+      break;
+    
+    case 2:
+      drivetrain.updateAuto();
+      if(drivetrain.isAutoIdle()) {
+        // Get the angle to the centre of the cup and get the distance the cup is at
+        int cupAngle = calcCupAngle(&g_cmdSeqCtrl.lastAlignDistance);
+        // Turn to that angle
+        drivetrain.autoRotate((g_cmdSeqCtrl.param == 0) ? cupAngle : -cupAngle);
+        g_cmdSeqCtrl.curStep++;
+      }
+      else {
+        // Measure the distance and record it
+        int distance = ultrasonic.getDistanceMm();
+        logDistance(distance);
+      }
+      break;
+
+    case 3:
+      drivetrain.updateAuto();
+      if(drivetrain.isAutoIdle()) {
+        g_cmdSeqCtrl.isRunning = false;
+      }
+      break;
+    }
+  }
+  
+  // If command finished or was stopped, clean up
+  if(!g_cmdSeqCtrl.isRunning) {
+    drivetrain.abortAuto();
+    drivetrain.drive(0, 0);
+    elevator.setPower(0);
+    printDistanceLog();
+    TRACE("CMD DONE: Scan and Align");
   }
 }
 
@@ -716,6 +788,7 @@ void logDistance(int distance) {
   }
 }
 
+
 ////////////////////////////////////////////////////////////////////
 // Print out the distance log
 void printDistanceLog() {
@@ -724,5 +797,95 @@ void printDistanceLog() {
     Serial.print(",");
   }
   Serial.println("");
+  resetDistanceLog();
+}
+
+
+////////////////////////////////////////////////////////////////////
+// Reset the log index
+void resetDistanceLog() {
   distanceLogIdx = 0;
+}
+
+
+////////////////////////////////////////////////////////////////////
+// Find the centre of the set of closet measurements.  Return the 
+// angle to counter rotate to get there and the distance to that cup
+#define NEW_CUP_DIST_MM 50
+int calcCupAngle(int *pDistance) {
+  // Assume we haven't found anything close enough
+  int angle = 0;
+  if(pDistance) *pDistance = 0;
+
+  int scanningState = 0;
+  int cupStartIdx = -1;
+  int cupEndIdx = -1;
+  for(int idx = 0; idx <= distanceLogIdx; idx++) {
+    if(distanceLog[idx] == -1) {
+      // Could be too close or too far.  Don't know so ignore
+      continue;
+    }
+    switch(scanningState) {
+    case 0:
+      // Start by trying to find something that's below threshold
+      if(distanceLog[idx] < MAX_CUP_DISTANCE_MM) {
+        cupStartIdx = idx;
+        scanningState++;
+      }
+      break;
+      
+    case 1:
+      // We have found the start of a cup.  Now check for two things:
+      // - A closer cup (140 vs 150)
+      // - The end of that cup (200 vs 150)
+      if((distanceLog[cupStartIdx] - distanceLog[idx]) > NEW_CUP_DIST_MM) {
+        // Found a closer cup, reset the start index
+        cupStartIdx = idx;
+      }
+      else if((distanceLog[idx] - distanceLog[cupStartIdx]) > NEW_CUP_DIST_MM) {
+        // Found the end of the cup
+        cupEndIdx = idx - 1;
+        scanningState++;
+      }
+
+    case 2:
+      // TODO:  Break out of the for loop
+      break;
+    }
+  }
+
+  // Act on what we found
+  if(cupStartIdx == -1) {
+    // Didn't find a cup
+    return 0;
+  }
+  
+  if(cupEndIdx == -1) {
+    // Didn't find the end of the cup so assume the last entry is the end
+    cupEndIdx = distanceLogIdx;
+    Serial.println("No cup end found");
+  }
+
+  // Calculate the angle to the centre of the cup
+  // angle-to-cup = ((last-idx - cup-centre-idx) / last-idx) * overall-scan-angle
+  int centreIdx = (cupEndIdx - cupStartIdx + 1) / 2 + cupStartIdx;
+  angle = ((distanceLogIdx - centreIdx) / (float)distanceLogIdx) * MAX_SEARCH_ROTATE_DEG;
+  if(pDistance) {
+    *pDistance = distanceLog[centreIdx];
+  }
+
+  Serial.print("Cup S");
+  Serial.print(cupStartIdx);
+  Serial.print(" E");
+  Serial.print(cupEndIdx);
+  Serial.print(" C");
+  Serial.print(centreIdx);
+  Serial.print(" L");
+  Serial.print(distanceLogIdx);
+  Serial.print(" A");
+  Serial.print(angle);
+  Serial.print(" D");
+  Serial.println(*pDistance);
+
+  return angle;
 }
