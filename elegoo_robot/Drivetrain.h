@@ -55,6 +55,8 @@ public:
   void setPower(int left, int right) {
     m_leftSide.setPower(left);
     m_rightSide.setPower(right);
+    m_leftEncoder.setDirectionForward(left > 0 ? true : false);
+    m_rightEncoder.setDirectionForward(right > 0 ? true : false);
   }
 
   ////////////////////////////////////////////////////////////////////
@@ -170,8 +172,6 @@ public:
     // Reset the encoders and set the direction of motion
     m_leftEncoder.reset();
     m_rightEncoder.reset();
-    m_leftEncoder.setDirectionForward(distance > 0 ? true : false);
-    m_rightEncoder.setDirectionForward(distance < 0 ? true : false);
 
     // Start the motors
     if(distance > 0) {
@@ -211,8 +211,6 @@ public:
     // Reset the encoders and set the direction of motion
     m_leftEncoder.reset();
     m_rightEncoder.reset();
-    m_leftEncoder.setDirectionForward(distance > 0 ? true : false);
-    m_rightEncoder.setDirectionForward(distance < 0 ? true : false);
 
     // Start the motors
     if(distance > 0) {
