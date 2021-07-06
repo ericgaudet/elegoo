@@ -1,4 +1,7 @@
 // Class to control one side (2 motors) of the tank drive
+#ifndef TANKDRIVESIDE_H
+#define TANKDRIVESIDE_H
+
 class TankDriveSide {
 private:
   int m_enPin;
@@ -60,3 +63,5 @@ public:
     }
   }
 };
+
+#endif

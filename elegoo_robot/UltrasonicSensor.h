@@ -1,5 +1,8 @@
 // Ultrasonic distance sensor manager
 // Control for forward-facing ultrasonic distance sensor.
+#ifndef ULTRASONICSENSOR_H
+#define ULTRASONICSENSOR_H
+
 #include "RobotMap.h"
 
 // Useful constants for ultrasonic calculations
@@ -42,3 +45,5 @@ public:
     return (int)(echoTime * SPEED_OF_SOUND_MM_PER_US / 2);
   }
 };
+
+#endif

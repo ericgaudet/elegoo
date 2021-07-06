@@ -1,4 +1,6 @@
 // Class that manages the wheel encoders
+#ifndef WHEELENCODERS_H
+#define WHEELENCODERS_H
 
 // Need left and right side items because the interrupts don't work with class functions
 int g_leftCount = 0;
@@ -54,12 +56,12 @@ public:
     if( leftSide ) {
       m_pCount = &g_leftCount;
       m_pForward = &g_leftDirectionForward;
-      attachInterrupt(digitalPinToInterrupt(m_encoderPin), leftTickIsr, RISING /*CHANGE*/);
+      attachInterrupt(digitalPinToInterrupt(m_encoderPin), leftTickIsr, CHANGE);
     }
     else {
       m_pCount = &g_rightCount;
       m_pForward = &g_rightDirectionForward;
-      attachInterrupt(digitalPinToInterrupt(m_encoderPin), rightTickIsr, RISING /*CHANGE*/);
+      attachInterrupt(digitalPinToInterrupt(m_encoderPin), rightTickIsr, CHANGE);
     } 
   }
 
@@ -109,3 +111,5 @@ public:
   }
   
 };
+
+#endif

@@ -1,4 +1,7 @@
 // Subsystem for the cup gripper (circular jaws that rotate open and closed)
+#ifndef GRIPPER_H
+#define GRIPPER_H
+
 #include "RobotMap.h"
 #include <Servo.h>
 
@@ -33,3 +36,5 @@ public:
     servo.write(CLOSED_POS);
   }
 };
+
+#endif

@@ -1,4 +1,5 @@
-
+#ifndef MYTIMER_H
+#define MYTIMER_H
 
 class Timer {
 private:
@@ -22,3 +23,5 @@ public:
     return (millis() >= targetTime) ? true : false;
   }
 };
+
+#endif

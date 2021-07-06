@@ -1,5 +1,8 @@
 // Elevator subsystem
 // Includes continuous servo control for raise-lower functionality and upper and lower limit switches.
+#ifndef ELEVATOR_H
+#define ELEVATOR_H
+
 #include "RobotMap.h"
 #include <Servo.h>
 
@@ -60,3 +63,5 @@ public:
     return digitalRead(ELEVATOR_UPPER_LIMIT_SWITCH_PIN);
   }
 };
+
+#endif

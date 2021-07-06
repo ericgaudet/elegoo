@@ -1,5 +1,8 @@
 // Drivetrain subsystem
 // Includes wheel motor control (2 left, 2 right), wheel encorder management and line following sensors.
+#ifndef DRIVETRAIN_H
+#define DRIVETRAIN_H
+
 #include "RobotMap.h"
 #include "TankDriveSide.h"
 #include "WheelEncoder.h"
@@ -9,7 +12,7 @@
 #define AUTO_TURN_POWER             224
 #define LINE_FOLLOW_STRAIGHT_POWER  128
 #define LINE_FOLLOW_TURN_POWER      128
-#define TICKS_TO_MM_FACTOR          (125/280.0)  //(345/1810.0)
+#define TICKS_TO_MM_FACTOR          (345/1810.0) //(109/280.0)
 #define WHEEL_BASE_MM               125.0
 
 enum States {
@@ -261,3 +264,5 @@ public:
     }
   }
 };
+
+#endif

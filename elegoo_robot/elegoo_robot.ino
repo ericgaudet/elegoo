@@ -13,7 +13,7 @@
 
 
 // For debugging purposes
-#if 1
+#if 0
   #define TRACE(x)  Serial.println(x)
 #else
   #define TRACE(x)
