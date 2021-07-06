@@ -106,13 +106,28 @@ void loop() {
       
     case eAutonomous:
       // Handle Autonomous mode
-      autonomous();
+      //autonomous();
       break;
       
     case eTeleop:
       // Handle telop mode
       teleop();
       break;
+    }
+  }
+
+  if(ds.getGameState() == eAutonomous) {
+    if(g_firstTimeInAuto) {
+      g_firstTimeInAuto = false;
+      timer.set(7000);
+    }
+
+    // Hack to get the robot to stop somewhere in Zone D
+    if(timer.isExpired()) {
+      drivetrain.setPower(0, 0);
+    }
+    else {
+      drivetrain.autoLineFollow();      
     }
   }
 
@@ -224,12 +239,20 @@ void teleop() {
       g_cmdSeqCtrl.isRunning = true;
     }
     else if(ds.getButton(ALIGN_TO_CUP_L_BTN)) {
-      g_cmdSeqCtrl.handleCmdSeq = &handleAlignToCup; //handleScanAndAlignToCup
+#ifdef SCAN_AND_ALIGN
+      g_cmdSeqCtrl.handleCmdSeq = &handleScanAndAlignToCup;
+#else
+      g_cmdSeqCtrl.handleCmdSeq = &handleAlignToCup;
+#endif
       g_cmdSeqCtrl.param = 0; // 0 = left-hand turn
       g_cmdSeqCtrl.isRunning = true;
     }
     else if(ds.getButton(ALIGN_TO_CUP_R_BTN)) {
-      g_cmdSeqCtrl.handleCmdSeq = &handleAlignToCup; //handleScanAndAlignToCup
+#ifdef SCAN_AND_ALIGN
+      g_cmdSeqCtrl.handleCmdSeq = &handleScanAndAlignToCup;
+#else
+      g_cmdSeqCtrl.handleCmdSeq = &handleAlignToCup;
+#endif
       g_cmdSeqCtrl.param = 1; // 1 = right-hand turn
       g_cmdSeqCtrl.isRunning = true;
     }
