@@ -24,7 +24,7 @@
 #define JOYSTICK_DEADBAND   8
 
 // Button IDs, from idx 0 (Logitech F310/F710)
-#define PICKUP_CUP_BTN      0   // A (Green, bottom)
+#define DRP_AND_2ND_CUP_BTN 0   // A (Green, bottom)
 #define GRIPPER_CLOSE_BTN   1   // B (Red, right)
 #define GRIPPER_OPEN_BTN    2   // X (Blue, left)
 #define GRAB_2ND_CUP_BTN    3   // Y (Yellow, top)
@@ -32,18 +32,18 @@
 #define ELEVATOR_TO_TOP_BTN 5   // RB
 //#define 6   // LT - used as throttle
 //#define 7   // RT - used as throttle
-#define GRAB_2ND_CUP_L_BTN  8   // BACK
-#define GRAB_2ND_CUP_R_BTN  9   // START
+#define ROTATE_TEST_BTN     8   // BACK
+#define DRIVE_TEST_BTN      9   // START
 #define CANCEL1_BTN         10  // L3
 #define CANCEL2_BTN         11  // R3
-//#define 12  // D-Up
+#define GRAB_1ST_CUP_BTN    12  // D-Up
 //#define 13  // D-Down
-#define GRAB_1ST_CUP_L_BTN  14  // D-Left
-#define GRAB_1ST_CUP_R_BTN  15  // D-Right
+#define ALIGN_TO_CUP_L_BTN  14  // D-Left
+#define ALIGN_TO_CUP_R_BTN  15  // D-Right
 
 // Command settings
-#define MAX_SEARCH_ROTATE_DEG   90
-#define MAX_CUP_DISTANCE_MM     200
+#define MAX_SEARCH_ROTATE_DEG   135
+#define MAX_CUP_DISTANCE_MM     300
 #define CUP_PICKUP_DISTANCE_MM  50
 #define CUP_BACKOFF_DISTANCE_MM 30
 
@@ -64,6 +64,7 @@ struct CommandSequenceController {
   void (*handleCmdSeq)(void); // Function pointer to the command handler
   int param;                  // Parameter for function (use varies by handler)
   int curStep;                // Current step in the command sequence
+  int lastAlignDistance;      // Holds the distance from the last align command
 } g_cmdSeqCtrl;
 
 
@@ -215,30 +216,37 @@ void teleop() {
       g_cmdSeqCtrl.handleCmdSeq = &handleElevatorToTop;
       g_cmdSeqCtrl.isRunning = true;
     }
-    else if(ds.getButton(GRAB_1ST_CUP_L_BTN)) {
-      g_cmdSeqCtrl.handleCmdSeq = &handle1stCupPickup;
+    else if(ds.getButton(ALIGN_TO_CUP_L_BTN)) {
+      g_cmdSeqCtrl.handleCmdSeq = &handleAlignToCup;
       g_cmdSeqCtrl.param = 0; // 0 = left-hand turn
       g_cmdSeqCtrl.isRunning = true;
     }
-    else if(ds.getButton(GRAB_1ST_CUP_R_BTN)) {
-      g_cmdSeqCtrl.handleCmdSeq = &handle1stCupPickup;
+    else if(ds.getButton(ALIGN_TO_CUP_R_BTN)) {
+      g_cmdSeqCtrl.handleCmdSeq = &handleAlignToCup;
       g_cmdSeqCtrl.param = 1; // 1 = right-hand turn
+      g_cmdSeqCtrl.isRunning = true;
+    }
+    else if(ds.getButton(GRAB_1ST_CUP_BTN)) {
+      g_cmdSeqCtrl.handleCmdSeq = &handle1stCupPickup;
+      g_cmdSeqCtrl.isRunning = true;
+    }
+    else if(ds.getButton(DRP_AND_2ND_CUP_BTN)) {
+      g_cmdSeqCtrl.handleCmdSeq = &handleDropAnd2ndCupPickup;
       g_cmdSeqCtrl.isRunning = true;
     }
     else if(ds.getButton(GRAB_2ND_CUP_BTN)) {
       g_cmdSeqCtrl.handleCmdSeq = &handle2ndCupPickup;
-      g_cmdSeqCtrl.isRunning = true;
-    }
-    else if(ds.getButton(GRAB_2ND_CUP_L_BTN)) {
-      g_cmdSeqCtrl.handleCmdSeq = &handle2ndCupPickupWithRotate;
       g_cmdSeqCtrl.param = 0; // 0 = left-hand turn
       g_cmdSeqCtrl.isRunning = true;
     }
-    else if(ds.getButton(GRAB_2ND_CUP_R_BTN)) {
-      g_cmdSeqCtrl.handleCmdSeq = &handle2ndCupPickupWithRotate;
-      g_cmdSeqCtrl.param = 1; // 1 = right-hand turn
+    else if(ds.getButton(DRIVE_TEST_BTN)) {
+      g_cmdSeqCtrl.handleCmdSeq = &handleDriveTest;
       g_cmdSeqCtrl.isRunning = true;
-    }    
+    }
+    else if(ds.getButton(ROTATE_TEST_BTN)) {
+      g_cmdSeqCtrl.handleCmdSeq = &handleRotateTest;
+      g_cmdSeqCtrl.isRunning = true;
+    }
     
     // If a new command has started, start running it now
     if(g_cmdSeqCtrl.isRunning) {
@@ -312,15 +320,15 @@ void handleElevatorToTop() {
 
 
 ////////////////////////////////////////////////////////////////////
-// Rotate the robot left or right using the ultrasonic sensor to 
-// detect the cup position.  Once it's in front of the robot, drive
-// up to it and grip it.
-void handle1stCupPickup() {
-  static int distanceToDrive = 0;
+// Align the robot to a cup within range.  Can rotate left of right.
+void handleAlignToCup() {
+  static bool foundPossibleCup = false;
   
   if(g_cmdSeqCtrl.isRunning) {
     switch(g_cmdSeqCtrl.curStep) {
     case 0:
+      g_cmdSeqCtrl.lastAlignDistance = 0;
+      
       // Raise elevator
       elevator.setPower(256);
       g_cmdSeqCtrl.curStep++;
@@ -330,17 +338,7 @@ void handle1stCupPickup() {
       // Check if elevator is raised
       if(elevator.isAtUpperLimit()) {
         elevator.setPower(0);
-        // Open the gripper
-        gripper.open();
-        g_cmdSeqCtrl.curStep++;
-        // Wait until gripper opens and cup falls
-        timer.set(500);
-      }
-      break;
-      
-    case 2:
-      // Check if we've waited long enough
-      if(timer.isExpired()) {
+
         // Start turning
         // param = 0 means left turn, 1 means right turn
         drivetrain.autoRotate((g_cmdSeqCtrl.param == 0) ? -MAX_SEARCH_ROTATE_DEG : MAX_SEARCH_ROTATE_DEG);
@@ -348,7 +346,7 @@ void handle1stCupPickup() {
       }
       break;
     
-    case 3:
+    case 2:
       drivetrain.updateAuto();
       if(drivetrain.isAutoIdle()) {
         // Quit if we've turned too far and haven't found a cup
@@ -357,29 +355,80 @@ void handle1stCupPickup() {
       else {
         // Check if we've found a cup close by
         int distance = ultrasonic.getDistanceMm();
+        logDistance(distance);
         if((distance > 0) && (distance < MAX_CUP_DISTANCE_MM)) {
-          // Stop turning and calculate how far we are from the cup
-          drivetrain.abortAuto();
-          TRACE(distance);
-          distanceToDrive = distance - CUP_PICKUP_DISTANCE_MM;
-          // Lower elevator
-          elevator.setPower(-256);
-          g_cmdSeqCtrl.curStep++;
-        }       
+          // Don't jump at the first cup with think we see
+          if(foundPossibleCup) {
+            // This is the second time we've seen an object so assume it's not a glitch
+            // Stop turning and calculate how far we are from the cup
+            drivetrain.abortAuto();
+            TRACE(distance);
+            g_cmdSeqCtrl.lastAlignDistance = distance - CUP_PICKUP_DISTANCE_MM;
+            foundPossibleCup = false;
+            // Done
+            g_cmdSeqCtrl.isRunning = false;
+          }
+          else {
+            foundPossibleCup = true;
+            TRACE(distance);
+          }
+        }
+        else {
+          foundPossibleCup = false;
+        }
+      }
+      break;
+    }
+  }
+  
+  // If command finished or was stopped, clean up
+  if(!g_cmdSeqCtrl.isRunning) {
+    drivetrain.abortAuto();
+    drivetrain.drive(0, 0);
+    elevator.setPower(0);
+    printDistanceLog();
+    TRACE("CMD DONE: Align");
+  }
+}
+
+
+////////////////////////////////////////////////////////////////////
+// Drive up to the first cup and grip it.  Distance is based on the
+// align command's measured distance.
+void handle1stCupPickup() {
+  static int distanceToDrive = 0;
+  static bool foundPossibleCup = false;
+  
+  if(g_cmdSeqCtrl.isRunning) {
+    switch(g_cmdSeqCtrl.curStep) {
+    case 0:
+      // Open the gripper
+      gripper.open();
+      g_cmdSeqCtrl.curStep++;
+      // Wait until gripper opens
+      timer.set(500);
+      break;
+      
+    case 1:
+      // Check if we've waited long enough
+      if(timer.isExpired()) {
+        // Lower elevator
+        elevator.setPower(-256);
+        g_cmdSeqCtrl.curStep++;
       }
       break;
     
-    case 4:
+    case 2:
       // Check if elevator is lowered
       if(elevator.isAtLowerLimit()) {
         elevator.setPower(0);
         // Drive to the cup using pre-calculated distance
-        drivetrain.autoDistance(distanceToDrive);
+        drivetrain.autoDistance(g_cmdSeqCtrl.lastAlignDistance);
         g_cmdSeqCtrl.curStep++;
       }
       break;
 
-    case 5:
+    case 3:
       // Update the drivetrain state machine and check if the move is done
       drivetrain.updateAuto();
       if(drivetrain.isAutoIdle()) {
@@ -396,7 +445,8 @@ void handle1stCupPickup() {
     drivetrain.abortAuto();
     drivetrain.drive(0, 0);
     elevator.setPower(0);
-    TRACE("CMD DONE: Test");
+    printDistanceLog();
+    TRACE("CMD DONE: 1st Cup");
   }
 }
 
@@ -412,7 +462,7 @@ void handle1stCupPickup() {
 // - Close the gripper
 // - Wait a bit
 // - Raise the elevator
-void handle2ndCupPickup() {
+void handleDropAnd2ndCupPickup() {
   // Make sure the sequence hasn't been cancelled
   if(g_cmdSeqCtrl.isRunning) {
     switch(g_cmdSeqCtrl.curStep) {
@@ -497,15 +547,16 @@ void handle2ndCupPickup() {
 
 
 ////////////////////////////////////////////////////////////////////
-// Same as the previous 2nd-cup grab function but rotates to find
-// the second cup first.
-void handle2ndCupPickupWithRotate() {  
+// Same as the previous 2nd-cup grab function but advances based on
+// the align command's distance measurement
+void handle2ndCupPickup() {  
+  static bool foundPossibleCup = false;
+  
   // Make sure the sequence hasn't been cancelled
   if(g_cmdSeqCtrl.isRunning) {
     switch(g_cmdSeqCtrl.curStep) {
    case 0:
       // Raise elevator
-      TRACE("CMD: 2nd cup rot");
       elevator.setPower(256);
       g_cmdSeqCtrl.curStep++;
       break;
@@ -514,34 +565,14 @@ void handle2ndCupPickupWithRotate() {
       // Check if elevator is raised
       if(elevator.isAtUpperLimit()) {
         elevator.setPower(0);
-        // Start turning
-        // param = 0 means left turn, 1 means right turn
-        drivetrain.autoRotate((g_cmdSeqCtrl.param == 0) ? -MAX_SEARCH_ROTATE_DEG : MAX_SEARCH_ROTATE_DEG);
+ 
+        // Drive to the cup
+        drivetrain.autoDistance(g_cmdSeqCtrl.lastAlignDistance);
         g_cmdSeqCtrl.curStep++;
       }
       break;
-    
-    case 2:
-      drivetrain.updateAuto();
-      if(drivetrain.isAutoIdle()) {
-        // Quit if we've turned too far and haven't found a cup
-        g_cmdSeqCtrl.isRunning = false;
-      }
-      else {
-        // Check if we've found a cup close by
-        int distance = ultrasonic.getDistanceMm();
-        if((distance > 0) && (distance < MAX_CUP_DISTANCE_MM)) {
-          // Stop turning and calculate how far we are from the cup
-          drivetrain.abortAuto();
-          TRACE(distance);
-          // Drive to the cup
-          drivetrain.autoDistance(distance - CUP_PICKUP_DISTANCE_MM);
-          g_cmdSeqCtrl.curStep++;
-        }
-      }
-      break;
 
-    case 3:
+    case 2:
       // Update the drivetrain state machine and check if the move is done
       drivetrain.updateAuto();
       if(drivetrain.isAutoIdle()) {
@@ -553,7 +584,7 @@ void handle2ndCupPickupWithRotate() {
       }
       break;
       
-    case 4:
+    case 3:
       // Check if we've waited long enough
       if(timer.isExpired()) {
         // Back up a bit (so elevator doesn't hit cups on way down)
@@ -562,7 +593,7 @@ void handle2ndCupPickupWithRotate() {
       }
       break;
       
-    case 5:
+    case 4:
       // Update the drivetrain state machine and check if the move is done
       drivetrain.updateAuto();
       if(drivetrain.isAutoIdle()) {
@@ -572,7 +603,7 @@ void handle2ndCupPickupWithRotate() {
       }
       break;
       
-    case 6:
+    case 5:
       // Check if elevator is lowered
       if(elevator.isAtLowerLimit()) {
         // Stop the elevator and drive forward 30mm
@@ -582,7 +613,7 @@ void handle2ndCupPickupWithRotate() {
       }
       break;
       
-    case 7:
+    case 6:
       // Update the drivetrain state machine and check if the move is done
       drivetrain.updateAuto();
       if(drivetrain.isAutoIdle()) {
@@ -599,6 +630,99 @@ void handle2ndCupPickupWithRotate() {
     drivetrain.abortAuto();
     drivetrain.drive(0, 0);
     elevator.setPower(0);
+    printDistanceLog();
     TRACE("CMD DONE: 2nd cup rot");
   }
+}
+
+
+////////////////////////////////////////////////////////////////////
+// Drive half the field to check that the encoders are correct
+#define HALF_FIELD_DISTANCE_MM  905
+void handleDriveTest() {
+   // Make sure the sequence hasn't been cancelled
+  if(g_cmdSeqCtrl.isRunning) {
+    switch(g_cmdSeqCtrl.curStep) {
+    case 0:
+        // Drive the set distance
+        drivetrain.autoDistance(HALF_FIELD_DISTANCE_MM);
+        g_cmdSeqCtrl.curStep++;
+      break;
+
+    case 1:
+      // Update the drivetrain state machine and check if the move is done
+      drivetrain.updateAuto();
+      if(drivetrain.isAutoIdle()) {
+        g_cmdSeqCtrl.isRunning = false;
+      }
+      break;
+    }
+  }
+
+  // If command finished or was stopped, clean up
+  if(!g_cmdSeqCtrl.isRunning) {
+    drivetrain.abortAuto();
+    drivetrain.drive(0, 0);
+    elevator.setPower(0);
+    TRACE("CMD DONE: Drive Test");
+  }
+}
+
+
+////////////////////////////////////////////////////////////////////
+// Rotate a set amount to test the encoders
+#define ROTATE_TEST_DEG 90
+void handleRotateTest() {
+  if(g_cmdSeqCtrl.isRunning) {
+    switch(g_cmdSeqCtrl.curStep) {
+    case 0:
+      // Start turning
+      // param = 0 means left turn, 1 means right turn
+      drivetrain.autoRotate(ROTATE_TEST_DEG);
+      g_cmdSeqCtrl.curStep++;
+      break;
+    
+    case 1:
+      drivetrain.updateAuto();
+      if(drivetrain.isAutoIdle()) {
+        // Done turning
+        g_cmdSeqCtrl.isRunning = false;
+      }
+      break;
+    }
+  }
+  
+  // If command finished or was stopped, clean up
+  if(!g_cmdSeqCtrl.isRunning) {
+    drivetrain.abortAuto();
+    drivetrain.drive(0, 0);
+    elevator.setPower(0);
+    printDistanceLog();
+    TRACE("CMD DONE: Rotate Test");
+  }
+}
+
+
+////////////////////////////////////////////////////////////////////
+// Save a set of distances for debugging purposes
+#define DISTANCE_LOG_LENGTH 200
+int distanceLog[DISTANCE_LOG_LENGTH];
+int distanceLogIdx = 0;
+void logDistance(int distance) {
+  distanceLog[distanceLogIdx] = distance;
+  if(++distanceLogIdx >= DISTANCE_LOG_LENGTH) {
+    distanceLogIdx = 0;
+    TRACE("Distance Log Full");
+  }
+}
+
+////////////////////////////////////////////////////////////////////
+// Print out the distance log
+void printDistanceLog() {
+  for(int idx; idx < distanceLogIdx; idx++) {
+    Serial.print(distanceLog[idx]);
+    Serial.print(",");
+  }
+  Serial.println("");
+  distanceLogIdx = 0;
 }

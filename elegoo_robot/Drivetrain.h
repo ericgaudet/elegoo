@@ -5,11 +5,11 @@
 #include "WheelEncoder.h"
 
 // Constants
-#define AUTO_STRAIGHT_POWER         128
-#define AUTO_TURN_POWER             196
+#define AUTO_STRAIGHT_POWER         144
+#define AUTO_TURN_POWER             224
 #define LINE_FOLLOW_STRAIGHT_POWER  128
 #define LINE_FOLLOW_TURN_POWER      128
-#define TICKS_TO_MM_FACTOR          (109/280.0)
+#define TICKS_TO_MM_FACTOR          (345/1810.0) //(109/280.0)
 #define WHEEL_BASE_MM               125.0
 
 enum States {

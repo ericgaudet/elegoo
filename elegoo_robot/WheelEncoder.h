@@ -82,6 +82,15 @@ public:
   /////////////////////////////////////////////////////////////
   // Get number of ticks that represents the distance (quicker than getting mm)
   int getNumTicksInDistance(int distanceMm) {
+#if 0
+    Serial.print("Ticks in Distance: ");
+    Serial.print(distanceMm);
+    Serial.print("mm = ");
+    Serial.print((float)distanceMm * m_ticksToMmFactor);
+    Serial.print("(f) or ");
+    Serial.print((int)((float)distanceMm * m_ticksToMmFactor));
+    Serial.println("(i) ticks");
+#endif    
     return (int)((float)distanceMm * m_ticksToMmFactor);
   }
   
