@@ -44,7 +44,7 @@
 // Command settings
 #define MAX_SEARCH_ROTATE_DEG   135
 #define MAX_CUP_DISTANCE_MM     300
-#define CUP_PICKUP_DISTANCE_MM  50
+#define CUP_PICKUP_DISTANCE_MM  90
 #define CUP_BACKOFF_DISTANCE_MM 30
 
 
@@ -105,7 +105,7 @@ void loop() {
       break;
       
     case eAutonomous:
-      // Handle Autonomous mode
+      // Handle Autonomous mode directly inside "loop" since it's faster
       //autonomous();
       break;
       
@@ -116,19 +116,9 @@ void loop() {
     }
   }
 
+  // Kick off auto command if in auto
   if(ds.getGameState() == eAutonomous) {
-    if(g_firstTimeInAuto) {
-      g_firstTimeInAuto = false;
-      timer.set(7000);
-    }
-
-    // Hack to get the robot to stop somewhere in Zone D
-    if(timer.isExpired()) {
-      drivetrain.setPower(0, 0);
-    }
-    else {
-      drivetrain.autoLineFollow();      
-    }
+    autonomous();
   }
 
   // If a command sequence is running, service it now
@@ -143,8 +133,29 @@ void loop() {
 
 ////////////////////////////////////////////////////////////////////
 // Autonomous mode
-// Called 10 times per second
 void autonomous() {
+#if 1
+    if(g_firstTimeInAuto) {
+      g_firstTimeInAuto = false;
+      g_cmdSeqCtrl.handleCmdSeq = &handleAuto;
+      g_cmdSeqCtrl.isRunning = true;
+      g_cmdSeqCtrl.curStep = 0;
+      g_cmdSeqCtrl.handleCmdSeq();
+    }
+#else // Simple line follower
+    if(g_firstTimeInAuto) {
+      g_firstTimeInAuto = false;
+      timer.set(7000);
+    }
+
+    // Hack to get the robot to stop somewhere in Zone D
+    if(timer.isExpired()) {
+      drivetrain.setPower(0, 0);
+    }
+    else {
+      drivetrain.autoLineFollow();      
+    }
+#endif
 
 }
 
@@ -168,6 +179,7 @@ void teleop() {
     }
     drivetrain.drive(drivePower, rotatePower);
 #else
+
   // Check for the command-cancel buttons
   if(ds.getButton(CANCEL1_BTN) || ds.getButton(CANCEL2_BTN)) {
     // Make sure there's something to cancel
@@ -293,6 +305,195 @@ void teleop() {
 
 
 ////////////////////////////////////////////////////////////////////
+// Special command sequence for auto
+void handleAuto() {
+  if(g_cmdSeqCtrl.isRunning) {
+    switch(g_cmdSeqCtrl.curStep) {
+    case 0:     
+      // Raise elevator
+      elevator.setPower(256);
+      g_cmdSeqCtrl.curStep++;
+      break;
+
+    case 1:
+      // Check if elevator is raised
+      if(elevator.isAtUpperLimit()) {
+        elevator.setPower(0);
+
+        // Start turning
+        drivetrain.autoRotate(-65);
+        g_cmdSeqCtrl.curStep++;
+      }
+      break;
+    
+    case 2:
+      drivetrain.updateAuto();
+      if(drivetrain.isAutoIdle()) {
+        // Done turning.  Lower elevator
+        elevator.setPower(-256);
+        g_cmdSeqCtrl.curStep++;
+      }
+      break;
+      
+    case 3:
+      if(elevator.isAtLowerLimit()) {
+        elevator.setPower(0);
+
+        // Drive to the cup.
+        drivetrain.autoDistance(20);
+        g_cmdSeqCtrl.curStep++;
+      }
+      break;
+
+    case 4:
+      drivetrain.updateAuto();
+      if(drivetrain.isAutoIdle()) {
+        // Done driving.  Close gripper
+        gripper.close();
+        g_cmdSeqCtrl.curStep++;
+        // Wait until gripper closes
+        timer.set(500);
+      }
+      break;
+      
+    case 5:
+      // Check if we've waited long enough
+      if(timer.isExpired()) {
+        // Raise the elevator
+        elevator.setPower(256);
+        g_cmdSeqCtrl.curStep++;
+      }
+      break;
+
+    case 6:
+      // Check if elevator is raised
+      if(elevator.isAtUpperLimit()) {
+        elevator.setPower(0);
+
+        // Start turning
+        drivetrain.autoRotate(-20);
+        g_cmdSeqCtrl.curStep++;
+      }
+      break;
+
+    case 7:
+      drivetrain.updateAuto();
+      if(drivetrain.isAutoIdle()) {
+        // Done turning.  Drive forward to 2nd cup.
+        drivetrain.autoDistance(110);
+        g_cmdSeqCtrl.curStep++;
+      }
+      break;
+
+    case 8:
+      drivetrain.updateAuto();
+      if(drivetrain.isAutoIdle()) {
+        // Stop for a big so the cup isn't thrown
+        timer.set(500);
+        g_cmdSeqCtrl.curStep++;
+      }
+      break;
+
+    case 9:
+      if(timer.isExpired()) {  
+        // Open gripper
+        gripper.open();
+        g_cmdSeqCtrl.curStep++;
+        // Wait until gripper opens
+        timer.set(500);
+      }
+      break;
+
+    case 10:
+      // Check if we've waited long enough
+      if(timer.isExpired()) {
+        // Back up a bit (so elevator doesn't hit cups on way down)
+        drivetrain.autoDistance(-30);
+        g_cmdSeqCtrl.curStep++;
+      }
+      break;
+      
+    case 11:
+      // Update the drivetrain state machine and check if the move is done
+      drivetrain.updateAuto();
+      if(drivetrain.isAutoIdle()) {
+        // Lower elevator to pick-up-height
+        elevator.setPower(-256);
+        g_cmdSeqCtrl.curStep++;
+      }
+      break;
+      
+    case 12:
+      // Check if elevator is lowered
+      if(elevator.isAtLowerLimit()) {
+        // Stop the elevator and drive forward 30mm
+        elevator.setPower(0);
+        drivetrain.autoDistance(30);
+        g_cmdSeqCtrl.curStep++;
+      }
+      break;
+      
+    case 13:
+      // Update the drivetrain state machine and check if the move is done
+      drivetrain.updateAuto();
+      if(drivetrain.isAutoIdle()) {
+        // Close the gripper to grab the cups and then wait for things to stabilize
+        gripper.close();
+        timer.set(500);
+        g_cmdSeqCtrl.curStep++;
+      }
+      break;
+      
+    case 14:
+      // Check if we've waited long enough
+      if(timer.isExpired()) {
+        // Raise elevator to platform-drop-off-height
+        elevator.setPower(256);
+        g_cmdSeqCtrl.curStep++;
+      }
+      break;
+      
+    case 15:
+      // Check if elevator is raised
+      if(elevator.isAtUpperLimit()) {
+        // Rotate to the line-follow line
+        drivetrain.autoRotate(-45);
+        g_cmdSeqCtrl.curStep++;
+      }
+      break;
+
+    case 16:
+      // Update the drivetrain state machine and check if the move is done
+      drivetrain.updateAuto();
+      if(drivetrain.isAutoIdle()) {
+        // Drive to the line-follow line
+        drivetrain.autoDistance(400);
+        g_cmdSeqCtrl.curStep++;
+      }
+      break;
+
+    case 17:
+      // Update the drivetrain state machine and check if the move is done
+      drivetrain.updateAuto();
+      if(drivetrain.isAutoIdle()) {
+        g_cmdSeqCtrl.isRunning = false;
+      }
+      break;
+    }
+  }
+  
+  // If command finished or was stopped, clean up
+  if(!g_cmdSeqCtrl.isRunning) {
+    drivetrain.abortAuto();
+    drivetrain.drive(0, 0);
+    elevator.setPower(0);
+    printDistanceLog();
+    TRACE("CMD DONE: Auto");
+  }
+}
+
+
+////////////////////////////////////////////////////////////////////
 // Moves the elevator down until it hits the lower limit switch
 void handleElevatorToBottom() {
   // Make sure the sequence hasn't been cancelled
@@ -300,7 +501,6 @@ void handleElevatorToBottom() {
     switch(g_cmdSeqCtrl.curStep) {
     case 0:
       // Start lowering the elevator
-      TRACE("CMD: E to bot");
       drivetrain.drive(0, 0);
       elevator.setPower(-256);
       g_cmdSeqCtrl.curStep++;
@@ -330,7 +530,6 @@ void handleElevatorToTop() {
     switch(g_cmdSeqCtrl.curStep) {
     case 0:
       // Start raising the elevator
-      TRACE("CMD: E to top");
       drivetrain.drive(0, 0);
       elevator.setPower(256);
       g_cmdSeqCtrl.curStep++;
@@ -373,7 +572,6 @@ void handleAlignToCup() {
         elevator.setPower(0);
 
         // Start turning
-        // param = 0 means left turn, 1 means right turn
         drivetrain.autoRotate((g_cmdSeqCtrl.param == 0) ? -MAX_SEARCH_ROTATE_DEG : MAX_SEARCH_ROTATE_DEG);
         g_cmdSeqCtrl.curStep++;
       }
@@ -775,7 +973,6 @@ void handleRotateTest() {
     switch(g_cmdSeqCtrl.curStep) {
     case 0:
       // Start turning
-      // param = 0 means left turn, 1 means right turn
       drivetrain.autoRotate(ROTATE_TEST_DEG);
       g_cmdSeqCtrl.curStep++;
       break;
