@@ -23,7 +23,8 @@
 #define ULTRASONIC_ECHO                 A4
 #define ULTRASONIC_TRIG                 A5 
 
-// Debug modes
+// Debug and alternate modes
 //#define DRIVE_ONLY  1
+//#define SCAN_AND_ALIGN  1
 
 #endif // ROBOTMAP_H

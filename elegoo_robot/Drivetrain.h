@@ -10,10 +10,10 @@
 // Constants
 #define AUTO_STRAIGHT_POWER         144
 #define AUTO_TURN_POWER             224
-#define LINE_FOLLOW_STRAIGHT_POWER  128
-#define LINE_FOLLOW_TURN_POWER      128
-#define TICKS_TO_MM_FACTOR          (345/1810.0) //(109/280.0)
-#define WHEEL_BASE_MM               125.0
+#define LINE_FOLLOW_STRAIGHT_POWER  192
+#define LINE_FOLLOW_TURN_POWER      192
+#define TICKS_TO_MM_FACTOR          (178/905.0) //(109/280.0)
+#define WHEEL_BASE_MM               145.0
 
 enum States {
   idle = 0,
@@ -29,9 +29,9 @@ private:
   class WheelEncoder m_leftEncoder;
   class WheelEncoder m_rightEncoder;
   int m_leftEncoderCount;
-  int m_rightEncoderCount;
+  //int m_rightEncoderCount;
   int m_leftTargetTicks;
-  int m_rightTargetTicks;
+  //int m_rightTargetTicks;
   enum States m_state;
   
 public:
@@ -39,8 +39,8 @@ public:
   Drivetrain(): 
     m_leftSide(),
     m_rightSide(),
-    m_leftEncoder(),
-    m_rightEncoder() {}
+    m_leftEncoder()
+    /*m_rightEncoder()*/ {}
 
 
   ////////////////////////////////////////////////////////////////////
@@ -49,16 +49,16 @@ public:
     m_leftSide.init(L298_ENA_PIN, L298_IN1_PIN, L298_IN2_PIN);
     m_rightSide.init(L298_ENB_PIN, L298_IN4_PIN, L298_IN3_PIN);
     m_leftEncoder.init(LEFT_WHEEL_ENCODER_PIN, true);
-    m_rightEncoder.init(RIGHT_WHEEL_ENCODER_PIN, false);
+//    m_rightEncoder.init(RIGHT_WHEEL_ENCODER_PIN, false);
 
     pinMode(LINE_LEFT_PIN, INPUT);
     pinMode(LINE_MIDDLE_PIN, INPUT);
     pinMode(LINE_RIGHT_PIN, INPUT);
     
     m_leftEncoder.setTicksToDistanceFactor(TICKS_TO_MM_FACTOR);
-    m_rightEncoder.setTicksToDistanceFactor(TICKS_TO_MM_FACTOR);
+//    m_rightEncoder.setTicksToDistanceFactor(TICKS_TO_MM_FACTOR);
     m_leftTargetTicks = 0;
-    m_rightTargetTicks = 0;
+//    m_rightTargetTicks = 0;
     m_state = idle;
     setPower(0, 0);
   }
@@ -69,7 +69,7 @@ public:
     m_leftSide.setPower(left);
     m_rightSide.setPower(right);
     m_leftEncoder.setDirectionForward(left > 0 ? true : false);
-    m_rightEncoder.setDirectionForward(right > 0 ? true : false);
+//    m_rightEncoder.setDirectionForward(right > 0 ? true : false);
   }
 
   ////////////////////////////////////////////////////////////////////
@@ -129,6 +129,8 @@ public:
         Serial.print(ticks);
         Serial.print(" of ");
         Serial.print(m_leftTargetTicks);
+        Serial.print(" P:");
+        Serial.print(getPollCount());
         Serial.println(")");
       }
       break;
@@ -144,6 +146,8 @@ public:
         Serial.print(ticks);
         Serial.print(" of ");
         Serial.print(m_leftTargetTicks);
+        Serial.print(" P:");
+        Serial.print(getPollCount());
         Serial.println(")");
       }
       break;
@@ -180,11 +184,11 @@ public:
     
     // Set target distance in encoder ticks
     m_leftTargetTicks = m_leftEncoder.getNumTicksInDistance(distance);
-    m_rightTargetTicks = m_rightEncoder.getNumTicksInDistance(distance);
+//    m_rightTargetTicks = m_rightEncoder.getNumTicksInDistance(distance);
 
     // Reset the encoders and set the direction of motion
     m_leftEncoder.reset();
-    m_rightEncoder.reset();
+//    m_rightEncoder.reset();
 
     // Start the motors
     if(distance > 0) {
@@ -213,7 +217,7 @@ public:
 
     // Set the target ticks
     m_leftTargetTicks = m_leftEncoder.getNumTicksInDistance(distance);
-    m_rightTargetTicks = m_rightEncoder.getNumTicksInDistance(distance);
+//    m_rightTargetTicks = m_rightEncoder.getNumTicksInDistance(distance);
 
     Serial.print("AutoRotate: ");
     Serial.print(deg);
@@ -223,7 +227,7 @@ public:
 
     // Reset the encoders and set the direction of motion
     m_leftEncoder.reset();
-    m_rightEncoder.reset();
+//    m_rightEncoder.reset();
 
     // Start the motors
     if(distance > 0) {
@@ -240,6 +244,8 @@ public:
   ////////////////////////////////////////////////////////////////////
   // Follow a black line.  This should be called as often as possible.
   void autoLineFollow() {
+    static bool lastTurnLeft = false;
+    
     // Check if all three sensors see black (perpendicular to a black line)
     if((digitalRead(LINE_LEFT_PIN) == 0) && 
        (digitalRead(LINE_MIDDLE_PIN) == 0) && 
@@ -253,14 +259,21 @@ public:
     else if(digitalRead(LINE_LEFT_PIN) == 0) {
       // Black line is under the left sensor to go left to bring it to the middle
       setPower(-LINE_FOLLOW_TURN_POWER, LINE_FOLLOW_TURN_POWER);
+      lastTurnLeft = true;
     }
     else if(digitalRead(LINE_RIGHT_PIN) == 0) {
       // Black line is under the right sensor to go right to bring it to the middle
       setPower(LINE_FOLLOW_TURN_POWER, -LINE_FOLLOW_TURN_POWER);
+      lastTurnLeft = false;
     }
     else {
-      // Probably the hard right corner at the beginning
-      setPower(0, 0);
+      // Probably overshot the line, turn hard towards where we were turning before
+      if(lastTurnLeft) {
+        setPower(-LINE_FOLLOW_TURN_POWER, LINE_FOLLOW_TURN_POWER);
+      }
+      else {
+        setPower(LINE_FOLLOW_TURN_POWER, -LINE_FOLLOW_TURN_POWER);
+      }
     }
   }
 };

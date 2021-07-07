@@ -135,6 +135,9 @@ void loop() {
   if(g_cmdSeqCtrl.isRunning) {
     g_cmdSeqCtrl.handleCmdSeq();
   }
+
+  // Poll the wheel encoder
+  pollLeftEncoder();
 }
 
 
@@ -757,7 +760,7 @@ void handleDriveTest() {
   // If command finished or was stopped, clean up
   if(!g_cmdSeqCtrl.isRunning) {
     drivetrain.abortAuto();
-    drivetrain.drive(0, 0);
+    drivetrain.setPower(0, 0);
     elevator.setPower(0);
     TRACE("CMD DONE: Drive Test");
   }

@@ -33,6 +33,27 @@ void rightTickIsr(void) {
 #endif
 }
 
+
+// Poll left encoder
+int g_pollCount = 0;
+void pollLeftEncoder() {
+  static bool lastEncoderState = false;
+  if(digitalRead(LEFT_WHEEL_ENCODER_PIN) != lastEncoderState)
+  {
+    lastEncoderState = !lastEncoderState;
+    if(g_leftDirectionForward) {
+      g_pollCount++;
+    }
+    else {
+      g_pollCount--;
+    }
+  }
+}
+int getPollCount() {
+  return g_pollCount;
+}
+
+
 // Now the class
 class WheelEncoder {
 private:
@@ -52,7 +73,7 @@ public:
     m_ticksToMmFactor = 1.0;
 
     // Setup the encoder to interrupt on rising and falling edges
-    pinMode(m_encoderPin, INPUT);
+    pinMode(m_encoderPin, INPUT_PULLUP);
     if( leftSide ) {
       m_pCount = &g_leftCount;
       m_pForward = &g_leftDirectionForward;
@@ -69,6 +90,8 @@ public:
   // Reset the encoder tick count to 0
   void reset(void) {
     *m_pCount = 0;
+    g_pollCount = 0;
+    attachInterrupt(digitalPinToInterrupt(m_encoderPin), leftTickIsr, CHANGE);
   }
 
   /////////////////////////////////////////////////////////////
@@ -86,7 +109,7 @@ public:
   /////////////////////////////////////////////////////////////
   // Get distance in ticks
   int getDistanceInTicks(void) {
-    return *m_pCount;
+    return g_pollCount;//*m_pCount;
   }
 
   /////////////////////////////////////////////////////////////
