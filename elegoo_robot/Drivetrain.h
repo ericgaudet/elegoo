@@ -10,8 +10,8 @@
 // Constants
 #define AUTO_STRAIGHT_POWER         144
 #define AUTO_TURN_POWER             224
-#define LINE_FOLLOW_STRAIGHT_POWER  192
-#define LINE_FOLLOW_TURN_POWER      192
+#define LINE_FOLLOW_STRAIGHT_POWER  160
+#define LINE_FOLLOW_TURN_POWER      160
 #define TICKS_TO_MM_FACTOR          (178/905.0) //(109/280.0)
 #define WHEEL_BASE_MM               145.0
 
@@ -19,6 +19,7 @@ enum States {
   idle = 0,
   straight,
   rotate,
+  driveToLine,
   lineFollower
 };
 
@@ -27,7 +28,7 @@ private:
   class TankDriveSide m_leftSide;
   class TankDriveSide m_rightSide;
   class WheelEncoder m_leftEncoder;
-  class WheelEncoder m_rightEncoder;
+  //class WheelEncoder m_rightEncoder;
   int m_leftEncoderCount;
   //int m_rightEncoderCount;
   int m_leftTargetTicks;
@@ -152,6 +153,13 @@ public:
       }
       break;
 
+    case driveToLine:
+      if(digitalRead(LINE_MIDDLE_PIN) == 0) {
+        setPower(0, 0);
+        m_state = idle;
+      }
+      break;
+
     case lineFollower:
       autoLineFollow();
       break;
@@ -242,7 +250,15 @@ public:
   }
 
   ////////////////////////////////////////////////////////////////////
+  // Drive until one of the line sensors sees a line
+  void autoDriveToLine() {
+    setPower(LINE_FOLLOW_STRAIGHT_POWER, LINE_FOLLOW_STRAIGHT_POWER);
+    m_state = driveToLine;
+  }
+
+  ////////////////////////////////////////////////////////////////////
   // Follow a black line.  This should be called as often as possible.
+  // Note:  This auto doesn't follow the same structure as the others.
   void autoLineFollow() {
     static bool lastTurnLeft = false;
     

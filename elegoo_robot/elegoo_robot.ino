@@ -77,7 +77,7 @@ void setup() {
   gripper.init();
   
   Serial.begin( 115200 );
-  Serial.println( "Elegoo Robot v4.0" );
+  Serial.println( "Elegoo Robot v4.2" );
 }
 
 
@@ -371,7 +371,7 @@ void handleAuto() {
         elevator.setPower(0);
 
         // Start turning
-        drivetrain.autoRotate(-20);
+        drivetrain.autoRotate(-15);
         g_cmdSeqCtrl.curStep++;
       }
       break;
@@ -457,7 +457,7 @@ void handleAuto() {
       // Check if elevator is raised
       if(elevator.isAtUpperLimit()) {
         // Rotate to the line-follow line
-        drivetrain.autoRotate(-45);
+        drivetrain.autoRotate(-60);
         g_cmdSeqCtrl.curStep++;
       }
       break;
@@ -467,7 +467,7 @@ void handleAuto() {
       drivetrain.updateAuto();
       if(drivetrain.isAutoIdle()) {
         // Drive to the line-follow line
-        drivetrain.autoDistance(400);
+        drivetrain.autoDriveToLine();
         g_cmdSeqCtrl.curStep++;
       }
       break;
@@ -476,8 +476,14 @@ void handleAuto() {
       // Update the drivetrain state machine and check if the move is done
       drivetrain.updateAuto();
       if(drivetrain.isAutoIdle()) {
-        g_cmdSeqCtrl.isRunning = false;
+        g_cmdSeqCtrl.curStep++;
       }
+      break;
+
+    case 18:
+      // Line follow until the end of auto
+      drivetrain.autoLineFollow();
+      //g_cmdSeqCtrl.isRunning = false;
       break;
     }
   }
