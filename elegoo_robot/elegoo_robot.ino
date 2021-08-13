@@ -13,9 +13,11 @@
 
 
 // For debugging purposes
-#if 0
+#if 0 // Set to 1 to make the preprocessor replace all occurences of TRACE with Serial.println
+  // Print messages to the serial port / console
   #define TRACE(x)  Serial.println(x)
 #else
+  // Replace all TRACE functions with nothing (i.e. don't print to console)
   #define TRACE(x)
 #endif
 
@@ -127,6 +129,7 @@ void loop() {
   }
 
   // Poll the wheel encoder
+  // Hack.  Interrupts were inconsistent (sometimes the robot would move half, or twice, the distance).
   pollLeftEncoder();
 }
 
@@ -135,6 +138,7 @@ void loop() {
 // Autonomous mode
 void autonomous() {
 #if 1
+    // Setup auto command
     if(g_firstTimeInAuto) {
       g_firstTimeInAuto = false;
       g_cmdSeqCtrl.handleCmdSeq = &handleAuto;
@@ -142,7 +146,7 @@ void autonomous() {
       g_cmdSeqCtrl.curStep = 0;
       g_cmdSeqCtrl.handleCmdSeq();
     }
-#else // Simple line follower
+#else // Simple line follower.  Set above to "#if 0" to disable above and use this instead
     if(g_firstTimeInAuto) {
       g_firstTimeInAuto = false;
       timer.set(7000);
@@ -167,6 +171,7 @@ void autonomous() {
 // Do the control stuff in the main loop as it runs much more frequently (quicker reaction time).
 void teleop() {
 #ifdef DRIVE_ONLY
+    // If enabled (#define DRIVE_ONLY), put robot into simple driving mode
     int drivePower = ds.getLY();
     int rotatePower = ds.getRX();
   
@@ -254,7 +259,9 @@ void teleop() {
       g_cmdSeqCtrl.isRunning = true;
     }
     else if(ds.getButton(ALIGN_TO_CUP_L_BTN)) {
-#ifdef SCAN_AND_ALIGN
+#ifdef SCAN_AND_ALIGN 
+      // Scan and align uses the ultrasonic sensor and rotates the robot to find the closest cup.  
+      // The speed and accuracy of the sensor was not good enough to make this easier than manually lining up.
       g_cmdSeqCtrl.handleCmdSeq = &handleScanAndAlignToCup;
 #else
       g_cmdSeqCtrl.handleCmdSeq = &handleAlignToCup;
@@ -306,6 +313,8 @@ void teleop() {
 
 ////////////////////////////////////////////////////////////////////
 // Special command sequence for auto
+// Pick-up and stack two cups near the starting zone and bring them
+// to Zone D.
 void handleAuto() {
   if(g_cmdSeqCtrl.isRunning) {
     switch(g_cmdSeqCtrl.curStep) {
@@ -340,7 +349,7 @@ void handleAuto() {
         elevator.setPower(0);
 
         // Drive to the cup.
-        drivetrain.autoDistance(20);
+        drivetrain.autoDistance(30);
         g_cmdSeqCtrl.curStep++;
       }
       break;

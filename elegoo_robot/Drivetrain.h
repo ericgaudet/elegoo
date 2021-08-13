@@ -47,6 +47,8 @@ public:
   ////////////////////////////////////////////////////////////////////
   // Initializer (constructor wasn't a good place to do this)
   void init() {
+    // Only using the left encoder to measure distance so right is disabled
+    
     m_leftSide.init(L298_ENA_PIN, L298_IN1_PIN, L298_IN2_PIN);
     m_rightSide.init(L298_ENB_PIN, L298_IN4_PIN, L298_IN3_PIN);
     m_leftEncoder.init(LEFT_WHEEL_ENCODER_PIN, true);
