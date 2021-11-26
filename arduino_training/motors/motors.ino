@@ -2,15 +2,21 @@
 
 #ifdef ELEGOO
 #include "ElegooDriveMotors.h"
+#define ROBOT_TYPE "Elegoo "
 ElegooDriveMotors motors;
+
+
 #else
+
 #include "UctronicsDriveMotors.h"
+#define ROBOT_TYPE "Uctronics "
 UctronicsDriveMotors motors;
 #endif
 
 void setup() {
   // put your setup code here, to run once:
   Serial.begin(115200);
+  Serial.print(ROBOT_TYPE);
   Serial.println("Motors v1.0");
 }
 
