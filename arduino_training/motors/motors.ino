@@ -5,7 +5,6 @@
 #define ROBOT_TYPE "Elegoo "
 ElegooDriveMotors motors;
 
-
 #else
 
 #include "UctronicsDriveMotors.h"
